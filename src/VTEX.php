@@ -111,6 +111,7 @@ class VTEX
             $this->_syncCategories = isset($vtexConfig['syncCategories']) ? $vtexConfig['syncCategories'] : null;
             $this->_httpClient     = $httpClient;
             $this->_woowupClient   = $woowupClient;
+            $this->_filters        = [];
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
