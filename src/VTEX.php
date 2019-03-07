@@ -13,6 +13,9 @@ class VTEX
     private $_status;
     private $_branchName;
     private $_storeUrl;
+    private $_allowedSellers;
+    private $_syncCategories;
+    private $_salesChannel;
 
     private $_categories;
     private $_filters;
@@ -52,7 +55,7 @@ class VTEX
     const PRODUCTS_SEARCH_OFFSET = 0;
     const PRODUCTS_SEARCH_LIMIT  = 25;
 
-    const BRANCH_NAME = 'VTEX';
+    const DEFAULT_BRANCH_NAME = 'VTEX';
 
     const EMAIL_CONVERSATION_TRACKER_HOST = "http://conversationtracker.vtex.com.br";
 
@@ -82,38 +85,50 @@ class VTEX
 
     const VTEX_CONFIG_REQUIRED = ['appName', 'appKey', 'appToken', 'storeUrl'];
 
+    const ORDERS_QUERY_PARAMS = [
+        'page'     => 1,
+        'orderBy'  => '',
+        'per_page' => 200,
+    ];
+
+    const MAX_REQUEST_ATTEMPTS = 5;
+
     public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $woowupClient)
     {
         try {
             $this->_logger = $logger;
             $this->checkVtexConfig($vtexConfig);
 
-            $this->_host         = 'http://' . $vtexConfig['appName'] . '.vtexcommercestable.com.br';
-            $this->_appKey       = $vtexConfig['appKey'];
-            $this->_appToken     = $vtexConfig['appToken'];
-            $this->_appName      = $vtexConfig['appName'];
-            $this->_status       = (isset($vtexConfig['status']) && $vtexConfig['status']) ? $status : [self::STATUS_INVOICED];
-            $this->_storeUrl     = $vtexConfig['storeUrl'];
-            $this->_httpClient   = $httpClient;
-            $this->_woowupClient = $woowupClient;
+            $this->_host           = 'http://' . $vtexConfig['appName'] . '.vtexcommercestable.com.br';
+            $this->_appKey         = $vtexConfig['appKey'];
+            $this->_appToken       = $vtexConfig['appToken'];
+            $this->_appName        = $vtexConfig['appName'];
+            $this->_status         = isset($vtexConfig['status']) && $vtexConfig['status'] ? $status : [self::STATUS_INVOICED];
+            $this->_storeUrl       = $vtexConfig['storeUrl'];
+            $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $vtexConfig['salesChannel'] : null;
+            $this->_branchName     = isset($vtexConfig['branchName']) ? $vtexConfig['branchName'] : self::DEFAULT_BRANCH_NAME;
+            $this->_allowedSellers = isset($vtexConfig['allowedSellers']) ? $vtexConfig['allowedSellers'] : null;
+            $this->_syncCategories = isset($vtexConfig['syncCategories']) ? $vtexConfig['syncCategories'] : null;
+            $this->_httpClient     = $httpClient;
+            $this->_woowupClient   = $woowupClient;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
         }
     }
 
-    // TO-DO preguntar a diego cuales son los parametros
-    public function importOrders($updateOrders = false, $from_date = null, $page = 1, $order = null, $per_page = 200, $salesChannel = null, $branchName = null, $allowedSellers = null, $getCategories = false)
+    public function importOrders($updateOrders = false, $fromDate = null)
     {
-        // TO-DO Borrar este counter
-        $counter = 5;
         $this->_logger->info("Importing orders for " . $this->_appName);
-        foreach ($this->getOrders($from_date, $page, $order, $per_page, $salesChannel, $branchName, $allowedSellers, $getCategories) as $order) {
+        if ($fromDate !== null) {
+            $this->_logger->info("Starting date: " . $fromDate);
+        } else {
+            $this->_logger->info("No starting date specified");
+        }
+
+        foreach ($this->getOrders($fromDate) as $order) {
             $this->upsertCustomer($order['customer']);
             $this->upsertOrder($order, $updateOrders);
-            if (--$counter === 0) {
-                break;
-            }
         }
 
         if (count($this->_woowupStats['orders']['failed']) > 0) {
@@ -131,6 +146,52 @@ class VTEX
         $this->_logger->info("Duplicated orders: " . $this->_woowupStats['orders']['duplicated']);
         $this->_logger->info("Updated orders: " . $this->_woowupStats['orders']['updated']);
         $this->_logger->info("Failed orders: " . count($this->_woowupStats['orders']['failed']));
+    }
+
+    public function importProducts()
+    {
+        $this->_logger->info("Importing products");
+        foreach ($this->getProducts() as $product) {
+            $this->upsertProduct($product);
+        }
+
+        if (count($this->_woowupStats['products']['failed']) > 0) {
+            $this->_logger->info("Retrying failed products");
+            $failedProducts                           = $this->_woowupStats['products']['failed'];
+            $this->_woowupStats['products']['failed'] = [];
+            foreach ($failedProducts as $product) {
+                $this->upsertProduct($product);
+            }
+        }
+
+        $this->_logger->info("Finished. Stats:");
+        $this->_logger->info("Created products: " . $this->_woowupStats['products']['created']);
+        $this->_logger->info("Updated products: " . $this->_woowupStats['products']['updated']);
+        $this->_logger->info("Failed products: " . count($this->_woowupStats['products']['failed']));
+    }
+
+    public function importCustomers($days = 3, $dataEntity = "CL")
+    {
+        $this->_logger->info("Importing customers from $days days and entity $dataEntity");
+        $fromDate = date('Y-m-d', strtotime("-$days days"));
+
+        foreach ($this->getCustomers($fromDate, $dataEntity) as $customer) {
+            $this->upsertCustomer($customer);
+        }
+
+        if (count($this->_woowupStats['customers']['failed']) > 0) {
+            $this->_logger->info("Retrying failed customers");
+            $failedCustomers = $this->_woowupStats['customers']['failed'];
+            $this->_woowupStats['customers']['failed'] = [];
+            foreach ($failedCustomers as $customer) {
+                $this->upsertCustomer($customer);
+            }
+        }
+
+        $this->_logger->info("Finished. Stats:");
+        $this->_logger->info("Created customers: " . $this->_woowupStats['customers']['created']);
+        $this->_logger->info("Updated customers: " . $this->_woowupStats['customers']['updated']);
+        $this->_logger->info("Failed customers: " . count($this->_woowupStats['customers']['failed']));
     }
 
     public function upsertOrder($order, $update)
@@ -210,111 +271,57 @@ class VTEX
     }
 
     /**
-     * Checks minimum parameters to get connector running
-     * @param  [type] $vtexConfig [description]
-     * @return [type]             [description]
+     * Crea/Actualiza un producto en WoowUp
+     * @param  array $product Producto en formato WoowUp
+     * @return boolean        true: producto actualizado/creado con éxito, false: error
      */
-    public function checkVtexConfig($vtexConfig)
+    protected function upsertProduct($product)
     {
-        foreach (self::VTEX_CONFIG_REQUIRED as $parameter) {
-            if (!isset($vtexConfig[$parameter])) {
-                throw new \Exception("$parameter is missing", 1);
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Sets HTTP Client that fits ClientInterface
-     * @param ClientInterface $httpClient [description]
-     */
-    public function setHttpClient(ClientInterface $httpClient)
-    {
-        $this->_httpClient = $httpClient;
-    }
-
-    /**
-     * Sets Logger that fits LoggerInterface
-     * @param LoggerInterface $logger [description]
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->_logger = $logger;
-    }
-
-    /**
-     * Gets products from VTEX's API and maps them to WoowUp's API format
-     * @param  boolean $getCategories sync categories
-     * @return array   $products      products in WoowUp's API format
-     */
-    public function getProducts($getCategories = false)
-    {
-        $offset = self::PRODUCTS_SEARCH_OFFSET;
-        $limit  = self::PRODUCTS_SEARCH_LIMIT;
-
-        if ($getCategories === true) {
-            $this->_logger->info("Getting categories... ");
-            $this->_categories = $this->getCategories();
-            $this->_logger->info("Success!");
-        } else {
-            $this->_categories = [];
-        }
-
-        $totalProductsRetrieved = 0;
-
-        do {
-            $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... ");
-            // TO-DO traer por categorías hojas
-            $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1]);
-
-            if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
-                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
-            }
-
-            $this->_logger->info("Success!");
-
-            $total = explode('/', $response->getHeader('resources')[0])[1];
-
-            $vtexProducts = json_decode($response->getBody());
-
-            foreach ($vtexProducts as $vtexBaseProduct) {
-                foreach ($this->buildProducts($vtexBaseProduct) as $product) {
-                    $totalProductsRetrieved++;
-                    yield $product;
+        try {
+            $this->_woowupClient->products->update($product['sku'], $product);
+            $this->_logger->info("[Product] {$product['sku']} Updated Successfully");
+            $this->_woowupStats['products']['updated']++;
+            return true;
+        } catch (\Exception $e) {
+            if (method_exists($e, 'getResponse')) {
+                $response = json_decode($e->getResponse()->getBody(), true);
+                if ($e->getResponse()->getStatusCode() == 404) {
+                    // no existe el producto
+                    $this->_woowupClient->products->create($product);
+                    $this->_logger->info("[Product] {$product['sku']} Created Successfully");
+                    $this->_woowupStats['products']['created']++;
+                    return true;
+                } else {
+                    $errorCode    = $response['code'];
+                    $errorMessage = $response['payload']['errors'][0];
                 }
+            } else {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
             }
-
-            $offset += $limit;
-        } while (($limit + $offset) < $total);
-
-        $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
+            $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->_woowupStats['products']['failed'][] = $product;
+            return false;
+        }
     }
 
     /**
      * Gets orders from VTEX's API and maps them to WoowUp's API format
-     * @param  string  $from_date      oldest order date format [TO-DO poner formato válido]
-     * @param  integer $page           first page
-     * @param  string  $order          parameter to sort orders by
-     * @param  integer $per_page       amount of orders per page
-     * @param  string  $salesChannel   sales channel
-     * @param  string  $branchName     branch name to set to orders
-     * @param  array   $allowedSellers array of strings containing allowed sellers
-     * @param  boolean $getCategories  sync categories
+     * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
      * @return array   $orders         orders in WoowUp's API format
      */
-    public function getOrders($from_date = null, $page = 1, $order = null, $per_page = 200, $salesChannel = null, $branchName = null, $allowedSellers = null, $getCategories = false)
+    public function getOrders($fromDate = null)
     {
-        $this->_branchName = $branchName ? $branchName : self::BRANCH_NAME;
+        $this->_branchName = $branchName ? $branchName : self::DEFAULT_BRANCH_NAME;
 
         $params = array(
             'f_status' => join(',', $this->_status),
-            'page'     => $page,
-            'per_page' => $per_page,
+            'page'     => self::ORDERS_QUERY_PARAMS['page'],
+            'per_page' => self::ORDERS_QUERY_PARAMS['per_page'],
         );
 
         if ($order) {
-            $params['orderBy'] = $order;
+            $params['orderBy'] = self::ORDERS_QUERY_PARAMS['orderBy'];
         }
 
         if ($from_date != null) {
@@ -324,12 +331,13 @@ class VTEX
         }
 
         if ($salesChannel) {
-            $params += ['f_salesChannel' => $salesChannel];
+            $params += ['f_salesChannel' => $this->_salesChannel];
         }
 
-        if ($getCategories === true) {
+        if ($this->_syncCategories === true) {
             $this->_logger->info("Getting categories...");
-            $this->_categories = $this->getCategories();
+            $categoryTree      = $this->getCategoryTree();
+            $this->_categories = $this->flatternCategoryTree($categoryTree);
             $this->_logger->info("Success!");
         } else {
             $this->_categories = [];
@@ -360,22 +368,128 @@ class VTEX
     }
 
     /**
-     * Checks if seller is allowed
-     * @param  object  $vtexOrder       VTEX order object
-     * @param  array   $allowedSellers  array of allowed sellers
-     * @return boolean $isAllowedSeller isAllowedSeller
+     * Gets products from VTEX's API and maps them to WoowUp's API format
+     * @return array   $products      products in WoowUp's API format
      */
-    public function isAllowedSeller($vtexOrder, $allowedSellers)
+    public function getProducts()
     {
-        if (!is_null($allowedSellers) && isset($vtexOrder->sellers) && (count($vtexOrder->sellers) > 0)) {
-            foreach ($vtexOrder->sellers as $seller) {
-                if (!in_array(strtolower($seller->name), $allowedSellers)) {
-                    $this->_logger->info($seller->name . " is not a valid seller");
-                    return false;
+        $offset = self::PRODUCTS_SEARCH_OFFSET;
+        $limit  = self::PRODUCTS_SEARCH_LIMIT;
+
+        $categoryTree = $this->getCategoryTree();
+
+        if ($this->_syncCategories) {
+            $this->_logger->info("Getting categories... ");
+            $this->_categories = $this->flatternCategoryTree($categoryTree);
+            $this->_logger->info("Success!");
+        } else {
+            $this->_categories = [];
+        }
+
+        $totalProductsRetrieved = 0;
+
+        $this->_logger->info("Getting category leaves");
+        $categoryLeaves = $this->getCategoryLeaves(['children' => $categoryTree, 'id' => '']);
+
+        foreach ($categoryLeaves as $leaf) {
+            do {
+                $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name']);
+
+                $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']]);
+
+                if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
+                    throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+                }
+
+                $this->_logger->info("Success!");
+
+                $total = explode('/', $response->getHeader('resources')[0])[1];
+
+                $vtexProducts = json_decode($response->getBody());
+
+                foreach ($vtexProducts as $vtexBaseProduct) {
+                    foreach ($this->buildProducts($vtexBaseProduct) as $product) {
+                        $totalProductsRetrieved++;
+                        yield $product;
+                    }
+                }
+
+                $offset += $limit;
+            } while (($limit + $offset) < $total);
+            $offset = self::PRODUCTS_SEARCH_OFFSET;
+        }
+
+        $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
+    }
+
+    public function getCustomers($updatedAtMin = null, $dataEntity = "CL")
+    {
+        if ($updatedAtMin === null) {
+            $updatedAtMin = date('Y-m-d', strtotime('-3 days'));
+        }
+
+        $this->_logger->info("Getting customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
+
+        $params = [
+            '_fields' => '_all',
+            '_where' => 'updatedIn>' . $updatedAtMin,
+        ];
+
+        $offset = 0;
+        $limit = 100;
+
+        do {
+            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit);
+
+            $requestHeaders = [
+                'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
+            ];
+
+            $response = $this->_get('/api/dataentities/'. $dataEntity . '/search', $params, $requestHeaders);
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $this->_logger->info("Success!");
+
+            foreach (json_decode($response->getBody()) as $vtexCustomer) {
+                if (($customer = $this->buildCustomer($vtexCustomer)) !== null) {
+                    yield $customer;
                 }
             }
+            
+            
+            $totalCustomers = explode('/', $response->getHeader('REST-Content-Range')[0])[1];
+            $offset += $limit;
+        } while ($offset < $totalCustomers);
+    }
+
+    public function buildCustomer($vtexCustomer)
+    {
+        $email = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->email : null;
+        $document = isset($vtexCustomer->document) && !empty($vtexCustomer->document) ? $vtexCustomer->document : null;
+
+        if (!empty($email) || !empty($document)) {
+            $customer = [
+                'email' => $email,
+                'document' => $document,
+                'first_name' => ucwords(mb_strtolower($vtexCustomer->firstName)),
+                'last_name' => ucwords(mb_strtolower($vtexCustomer->lastName)),
+                'birthdate' => isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate) ? $vtexCustomer->birthDate : null,
+                'phone' => isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone) ? $vtexCustomer->homePhone : null,
+                'document_type' => isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType) ? $vtexCustomer->documentType : null,
+            ];
+
+            foreach ($customer as $key => $value) {
+                if (is_null($customer[$key]) || empty($customer[$key])) {
+                    unset($customer[$key]);
+                }
+            }
+
+            return $customer;
         }
-        return true;
+
+        return null;
     }
 
     /**
@@ -408,6 +522,55 @@ class VTEX
         }
 
         return $order;
+    }
+
+    /**
+     * Finds an order in VTEX's API by order id
+     * @param  [type] $vtexOrderId [description]
+     * @return [type]              [description]
+     */
+    public function getOrder($vtexOrderId)
+    {
+        $this->_logger->info("Getting order " . $vtexOrderId . "... ");
+        $response = $this->_get('/api/oms/pvt/orders/' . $vtexOrderId);
+
+        if ($response->getStatusCode() === 200) {
+            $this->_logger->info("Success!");
+            return json_decode($response->getBody());
+        } else {
+            throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
+        }
+    }
+
+    /**
+     * Builds a customer in WoowUp's format from VTEX's order
+     * @param  [type] $vtexOrder [description]
+     * @return [type]            [description]
+     */
+    public function buildCustomerFromOrder($vtexOrder)
+    {
+        $customer = [
+            'email'         => $this->unmaskEmail($vtexOrder->clientProfileData->email),
+            'first_name'    => ucwords(mb_strtolower($vtexOrder->clientProfileData->firstName)),
+            'last_name'     => ucwords(mb_strtolower($vtexOrder->clientProfileData->lastName)),
+            'document_type' => $vtexOrder->clientProfileData->documentType,
+            'document'      => $vtexOrder->clientProfileData->document,
+            'telephone'     => $vtexOrder->clientProfileData->phone,
+        ];
+
+        // Tomo datos de ubicación desde shippingData
+        if (isset($vtexOrder->shippingData) && isset($vtexOrder->shippingData->address) && !empty($vtexOrder->shippingData->address)) {
+            $address = $vtexOrder->shippingData->address;
+            $customer += [
+                'postcode' => $address->postalCode,
+                'city'     => ucwords(mb_strtolower($address->city)),
+                'state'    => ucwords(mb_strtolower($address->state)),
+                'country'  => $address->country,
+                'street'   => ucwords(mb_strtolower(trim(trim($address->street) . " " . trim($address->number)))),
+            ];
+        }
+
+        return $customer;
     }
 
     /**
@@ -452,74 +615,6 @@ class VTEX
     }
 
     /**
-     * Normalizes an imageUrl
-     * @param  [type] $imageUrl [description]
-     * @return [type]           [description]
-     */
-    public function normalizeResizedImageUrl($imageUrl)
-    {
-        // Le saco los parametros de resize de imagen que son los digitos despues del id.
-        $regex = '/([\S]+vteximg\.com\.br\/arquivos\/ids\/\d+)\-\d+\-\d+(\/[\S]+)/';
-        return preg_replace($regex, '$1$2', $imageUrl);
-    }
-
-    /**
-     * Get's VTEX variations for an item and returns them in WoowUp's format
-     * @param  [type] $vtexItem [description]
-     * @return [type]           [description]
-     */
-    public function getVariations($vtexItem)
-    {
-        try {
-            $response = $this->_get('/api/catalog_system/pub/products/variations/' . $vtexItem->productId, []);
-
-            if ($response->getStatusCode() === 200) {
-                $response = json_decode($response->getBody());
-                return $this->buildVariations($response, $vtexItem->id);
-            }
-        } catch (\Exception $e) {
-            $this->_logger->error("Error getting variations: " . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Maps VTEX variations to WoowUp's format
-     * @param  object $vtexVariations VTEX variations
-     * @param  string $needleItemId   searched VTEX item id
-     * @return array                  WoowUp's variations
-     */
-    public function buildVariations($vtexVariations, $needleItemId)
-    {
-        $variations = [];
-
-        if (!empty($vtexVariations) && isset($vtexVariations->dimensions) && !empty($vtexVariations->dimensions)) {
-            $properties = [];
-
-            foreach ($vtexVariations->dimensions as $dimension) {
-                $properties[] = $dimension;
-            }
-
-            if (!empty($properties) && isset($vtexVariations->skus)) {
-                foreach ($vtexVariations->skus as $vtexItem) {
-                    if (isset($vtexItem->sku) && ($vtexItem->sku == $needleItemId) && (isset($vtexItem->dimensions))) {
-                        foreach ($properties as $property) {
-                            if (isset($vtexItem->dimensions->$property)) {
-                                $variations[] = [
-                                    'name'  => $property,
-                                    'value' => $vtexItem->dimensions->$property,
-                                ];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return $variations;
-    }
-
-    /**
      * Maps VTEX payments to WoowUp's API format
      * @param  object $vtexOrder VTEX order
      * @return array             WoowUp's payment
@@ -535,46 +630,6 @@ class VTEX
                     }
                 }
             }
-        }
-
-        return $payment;
-    }
-
-    /**
-     * Maps one single VTEX payment to WoowUp's payment format
-     * @param  [type] $vtexPayment [description]
-     * @return [type]              [description]
-     */
-    public function buildOrderPayment($vtexPayment)
-    {
-        $payment = [
-            'type'  => $this->getPaymentType($vtexPayment->group),
-            'total' => (float) $vtexPayment->value / 100,
-        ];
-
-        switch ($vtexPayment->paymentSystemName) {
-            case self::PAYMENT_SERVICES['SERVICE_MP']:
-                // TO-DO Implementar conector de mercado pago
-                break;
-            case self::PAYMENT_SERVICES['SERVICE_TP']:
-                // TO-DO Implementar conector de todo pago
-                break;
-            case self::PAYMENT_SERVICES['SERVICE_CASH']:
-            case self::PAYMENT_SERVICES['SERVICE_COUPON']:
-            case self::PAYMENT_SERVICES['SERVICE_COMMERCE']:
-                break;
-            default:
-                if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
-                    $payment['first_digits'] = trim($vtexPayment->firstDigits);
-                }
-                break;
-        }
-
-        if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
-            $payment['brand'] = trim($vtexPayment->paymentSystemName);
-        }
-        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
-            $payment['installments'] = (int) $vtexPayment->installments;
         }
 
         return $payment;
@@ -618,6 +673,201 @@ class VTEX
     }
 
     /**
+     * Gets referenceId/refId for a specific productId
+     * @param  [type] $productId [description]
+     * @return [type]            [description]
+     */
+    public function getProductRefId($productId)
+    {
+        try {
+            $product = $this->getProductByProductId($productId);
+            return $product->RefId;
+        } catch (\Exception $e) {
+            $this->_logger->error("Could not obtain refId for product with productId: " . $productId);
+            return $productId;
+        }
+    }
+
+    /**
+     * Get's VTEX variations for an item and returns them in WoowUp's format
+     * @param  [type] $vtexItem [description]
+     * @return [type]           [description]
+     */
+    public function getVariations($vtexItem)
+    {
+        try {
+            $response = $this->_get('/api/catalog_system/pub/products/variations/' . $vtexItem->productId, []);
+
+            if ($response->getStatusCode() === 200) {
+                $response = json_decode($response->getBody());
+                return $this->buildVariations($response, $vtexItem->id);
+            }
+        } catch (\Exception $e) {
+            $this->_logger->error("Error getting variations: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Checks minimum parameters to get connector running
+     * @param  [type] $vtexConfig [description]
+     * @return [type]             [description]
+     */
+    public function checkVtexConfig($vtexConfig)
+    {
+        foreach (self::VTEX_CONFIG_REQUIRED as $parameter) {
+            if (!isset($vtexConfig[$parameter])) {
+                throw new \Exception("$parameter is missing", 1);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Sets HTTP Client that fits ClientInterface
+     * @param ClientInterface $httpClient [description]
+     */
+    public function setHttpClient(ClientInterface $httpClient)
+    {
+        $this->_httpClient = $httpClient;
+    }
+
+    /**
+     * Sets Logger that fits LoggerInterface
+     * @param LoggerInterface $logger [description]
+     */
+    public function setLogger(LoggerInterface $logger)
+    {
+        $this->_logger = $logger;
+    }
+
+    public function getCategoryLeaves($categoryTree, $parentPath = "")
+    {
+        $leaves = [];
+        $parentPath .= $categoryTree['id'] . '/';
+        if (isset($categoryTree['children']) && !empty($categoryTree['children'])) {
+            // No es hoja
+            foreach ($categoryTree['children'] as $childCategory) {
+                $leaves = array_merge($leaves, $this->getCategoryLeaves($childCategory, $parentPath));
+            }
+        } else {
+            $leaves[] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
+        }
+
+        return $leaves;
+    }
+
+    /**
+     * Checks if seller is allowed
+     * @param  object  $vtexOrder       VTEX order object
+     * @param  array   $allowedSellers  array of allowed sellers
+     * @return boolean $isAllowedSeller isAllowedSeller
+     */
+    public function isAllowedSeller($vtexOrder, $allowedSellers)
+    {
+        if (!is_null($allowedSellers) && isset($vtexOrder->sellers) && (count($vtexOrder->sellers) > 0)) {
+            foreach ($vtexOrder->sellers as $seller) {
+                if (!in_array(strtolower($seller->name), $allowedSellers)) {
+                    $this->_logger->info($seller->name . " is not a valid seller");
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Normalizes an imageUrl
+     * @param  [type] $imageUrl [description]
+     * @return [type]           [description]
+     */
+    public function normalizeResizedImageUrl($imageUrl)
+    {
+        // Le saco los parametros de resize de imagen que son los digitos despues del id.
+        $regex = '/([\S]+vteximg\.com\.br\/arquivos\/ids\/\d+)\-\d+\-\d+(\/[\S]+)/';
+        return preg_replace($regex, '$1$2', $imageUrl);
+    }
+
+    /**
+     * Maps VTEX variations to WoowUp's format
+     * @param  object $vtexVariations VTEX variations
+     * @param  string $needleItemId   searched VTEX item id
+     * @return array                  WoowUp's variations
+     */
+    public function buildVariations($vtexVariations, $needleItemId)
+    {
+        $variations = [];
+
+        if (!empty($vtexVariations) && isset($vtexVariations->dimensions) && !empty($vtexVariations->dimensions)) {
+            $properties = [];
+
+            foreach ($vtexVariations->dimensions as $dimension) {
+                $properties[] = $dimension;
+            }
+
+            if (!empty($properties) && isset($vtexVariations->skus)) {
+                foreach ($vtexVariations->skus as $vtexItem) {
+                    if (isset($vtexItem->sku) && ($vtexItem->sku == $needleItemId) && (isset($vtexItem->dimensions))) {
+                        foreach ($properties as $property) {
+                            if (isset($vtexItem->dimensions->$property)) {
+                                $variations[] = [
+                                    'name'  => $property,
+                                    'value' => $vtexItem->dimensions->$property,
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return $variations;
+    }
+
+
+
+    /**
+     * Maps one single VTEX payment to WoowUp's payment format
+     * @param  [type] $vtexPayment [description]
+     * @return [type]              [description]
+     */
+    public function buildOrderPayment($vtexPayment)
+    {
+        $payment = [
+            'type'  => $this->getPaymentType($vtexPayment->group),
+            'total' => (float) $vtexPayment->value / 100,
+        ];
+
+        switch ($vtexPayment->paymentSystemName) {
+            case self::PAYMENT_SERVICES['SERVICE_MP']:
+                // TO-DO Implementar conector de mercado pago
+                break;
+            case self::PAYMENT_SERVICES['SERVICE_TP']:
+                // TO-DO Implementar conector de todo pago
+                break;
+            case self::PAYMENT_SERVICES['SERVICE_CASH']:
+            case self::PAYMENT_SERVICES['SERVICE_COUPON']:
+            case self::PAYMENT_SERVICES['SERVICE_COMMERCE']:
+                break;
+            default:
+                if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
+                    $payment['first_digits'] = trim($vtexPayment->firstDigits);
+                }
+                break;
+        }
+
+        if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
+            $payment['brand'] = trim($vtexPayment->paymentSystemName);
+        }
+        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
+            $payment['installments'] = (int) $vtexPayment->installments;
+        }
+
+        return $payment;
+    }
+
+    /**
      * Maps VTEX payment's group to WoowUp's payment type
      * @param  [type] $type [description]
      * @return [type]       [description]
@@ -652,22 +902,6 @@ class VTEX
     }
 
     /**
-     * Gets referenceId/refId for a specific productId
-     * @param  [type] $productId [description]
-     * @return [type]            [description]
-     */
-    public function getProductRefId($productId)
-    {
-        try {
-            $product = $this->getProductByProductId($productId);
-            return $product->RefId;
-        } catch (\Exception $e) {
-            $this->_logger->error("Could not obtain refId for product with productId: " . $productId);
-            return $productId;
-        }
-    }
-
-    /**
      * Finds a product in VTEX's API by product Id
      * @param  [type] $productId [description]
      * @return [type]            [description]
@@ -681,37 +915,6 @@ class VTEX
         } else {
             throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
         }
-    }
-
-    /**
-     * Builds a customer in WoowUp's format from VTEX's order
-     * @param  [type] $vtexOrder [description]
-     * @return [type]            [description]
-     */
-    public function buildCustomerFromOrder($vtexOrder)
-    {
-        $customer = [
-            'email'         => $this->unmaskEmail($vtexOrder->clientProfileData->email),
-            'first_name'    => ucwords(mb_strtolower($vtexOrder->clientProfileData->firstName)),
-            'last_name'     => ucwords(mb_strtolower($vtexOrder->clientProfileData->lastName)),
-            'document_type' => $vtexOrder->clientProfileData->documentType,
-            'document'      => $vtexOrder->clientProfileData->document,
-            'telephone'     => $vtexOrder->clientProfileData->phone,
-        ];
-
-        // Tomo datos de ubicación desde shippingData
-        if (isset($vtexOrder->shippingData) && isset($vtexOrder->shippingData->address) && !empty($vtexOrder->shippingData->address)) {
-            $address = $vtexOrder->shippingData->address;
-            $customer += [
-                'postcode' => $address->postalCode,
-                'city'     => ucwords(mb_strtolower($address->city)),
-                'state'    => ucwords(mb_strtolower($address->state)),
-                'country'  => $address->country,
-                'street'   => ucwords(mb_strtolower(trim(trim($address->street) . " " . trim($address->number)))),
-            ];
-        }
-
-        return $customer;
     }
 
     /**
@@ -753,24 +956,6 @@ class VTEX
     }
 
     /**
-     * Finds an order in VTEX's API by order id
-     * @param  [type] $vtexOrderId [description]
-     * @return [type]              [description]
-     */
-    public function getOrder($vtexOrderId)
-    {
-        $this->_logger->info("Getting order " . $vtexOrderId . "... ");
-        $response = $this->_get('/api/oms/pvt/orders/' . $vtexOrderId);
-
-        if ($response->getStatusCode() === 200) {
-            $this->_logger->info("Success!");
-            return json_decode($response->getBody());
-        } else {
-            throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
-        }
-    }
-
-    /**
      * Builds different products from a base product
      * @param  [type] $vtexBaseProduct [description]
      * @return [type]                  [description]
@@ -788,6 +973,9 @@ class VTEX
         }
 
         foreach ($vtexBaseProduct->items as $vtexProduct) {
+            if (!isset($vtexProduct->referenceId) || empty($vtexProduct->referenceId) || !isset($vtexProduct->referenceId[0]->Value)) {
+                continue;
+            }
             $sku = $vtexProduct->referenceId[0]->Value;
             foreach ($this->_filters as $filter) {
                 if (method_exists($filter, 'filterSku')) {
@@ -812,7 +1000,7 @@ class VTEX
      * Gets VTEX category tree and converts it to WoowUp's API category format
      * @return [type] [description]
      */
-    public function getCategories()
+    public function getCategoryTree()
     {
         $response = $this->_get('/api/catalog_system/pub/category/tree/10', []);
 
@@ -825,9 +1013,7 @@ class VTEX
                 $categoryTree[(string) $vtexCategory->id] = $this->getCategoryInfo($vtexCategory);
             }
 
-            $categories = $this->flatternCategoryTree($categoryTree);
-
-            return $categories;
+            return $categoryTree;
         } else {
             throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
         }
@@ -927,24 +1113,29 @@ class VTEX
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _request($method, $endpoint, $queryParams = [])
+    protected function _request($method, $endpoint, $queryParams = [], $headers = [])
     {
-        try {
-            $response = $this->_httpClient->request($method, $this->_host . $endpoint, [
-                'headers' => [
-                    'Content-Type'        => 'application/json',
-                    'Accept'              => 'application/vnd.vtex.ds.v10+json',
-                    'X-VTEX-API-AppKey'   => $this->_appKey,
-                    'X-VTEX-API-AppToken' => $this->_appToken,
-                ],
-                'query'   => $queryParams,
-            ]);
+        $attempts = 0;
+        while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
+            try {
+                $response = $this->_httpClient->request($method, $this->_host . $endpoint, [
+                    'headers' => [
+                        'Content-Type'        => 'application/json',
+                        'Accept'              => 'application/vnd.vtex.ds.v10+json',
+                        'X-VTEX-API-AppKey'   => $this->_appKey,
+                        'X-VTEX-API-AppToken' => $this->_appToken,
+                    ] + $headers,
+                    'query'   => $queryParams,
+                ]);
 
-            return $response;
-        } catch (\Exception $e) {
-            $this->_logger->error("Error at request attempt " . $e->getMessage());
-            return false;
+                return $response;
+            } catch (\Exception $e) {
+                $this->_logger->error("Error at request attempt " . $e->getMessage());
+            }
         }
+
+        $this->_logger->info("Max request attempts reached");
+        return null;
     }
 
     /**
@@ -953,9 +1144,9 @@ class VTEX
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _get($endpoint, $queryParams = [])
+    protected function _get($endpoint, $queryParams = [], $headers = [])
     {
-        return $this->_request('GET', $endpoint, $queryParams);
+        return $this->_request('GET', $endpoint, $queryParams, $headers);
     }
 
     /**
