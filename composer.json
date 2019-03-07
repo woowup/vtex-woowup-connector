@@ -1,4 +1,6 @@
 {
+   "name": "woowup/vtex-woowup-connector",
+   "description": "VTEX <> WoowUp Connector",
    "require": {
        "woowup/woowup-php-client": "dev-master",
       "monolog/monolog": "^1.24"
