@@ -1,0 +1,3 @@
+[2019-02-25 16:32:04] channel-name.INFO: This is a log! ^_^  [] []
+[2019-02-25 16:32:04] channel-name.WARNING: This is a log warning! ^_^  [] []
+[2019-02-25 16:32:04] channel-name.ERROR: This is a log error! ^_^  [] []
