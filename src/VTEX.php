@@ -1133,6 +1133,7 @@ class VTEX
             } catch (\Exception $e) {
                 $this->_logger->error("Error at request attempt " . $e->getMessage());
             }
+            $attempts++;
         }
 
         $this->_logger->info("Max request attempts reached");
