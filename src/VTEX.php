@@ -313,8 +313,6 @@ class VTEX
      */
     public function getOrders($fromDate = null)
     {
-        $this->_branchName = $branchName ? $branchName : self::DEFAULT_BRANCH_NAME;
-
         $params = array(
             'f_status' => join(',', $this->_status),
             'page'     => self::ORDERS_QUERY_PARAMS['page'],
@@ -351,7 +349,7 @@ class VTEX
                 $response    = json_decode($response->getBody());
                 $totalOrders = $response->paging->total;
                 foreach ($response->list as $vtexOrder) {
-                    if (!$this->isAllowedSeller($vtexOrder, $allowedSellers)) {
+                    if (!$this->isAllowedSeller($vtexOrder, $this->_allowedSellers)) {
                         continue;
                     }
                     $order = $this->buildOrder($vtexOrder->orderId);
