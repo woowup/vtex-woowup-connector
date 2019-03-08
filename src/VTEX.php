@@ -359,9 +359,11 @@ class VTEX
             $this->_logger->info("Dates " . $dateFilter);
 
             $params['f_creationDate'] = $dateFilter;
+            $params['page'] = self::ORDERS_QUERY_PARAMS['page'];
 
             do {
                 $params['page']++;
+                $this->_logger->info("Page " . $params['page']);
 
                 $response = $this->_get('/api/oms/pvt/orders/', $params);
 
