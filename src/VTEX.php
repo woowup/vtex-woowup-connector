@@ -87,7 +87,7 @@ class VTEX
 
     const ORDERS_QUERY_PARAMS = [
         'page'     => 1,
-        'orderBy'  => '',
+        'orderBy'  => 'creationDate,asc',
         'per_page' => 200,
     ];
 
@@ -320,11 +320,13 @@ class VTEX
             'orderBy'  => self::ORDERS_QUERY_PARAMS['orderBy'],
         );
 
-        if ($fromDate != null) {
-            $params += array(
-                'f_creationDate' => $fromDate,
-            );
+        if ($fromDate === null) {
+            $fromDate = date('Y-m-d', strtotime('-5 days'));
         }
+
+        $today = date('c');
+        $fromDate = date('c', strtotime($fromDate));
+        $intervalSec = 3600 * 3;
 
         if ($this->_salesChannel) {
             $params += ['f_salesChannel' => $this->_salesChannel];
@@ -339,28 +341,46 @@ class VTEX
             $this->_categories = [];
         }
 
-        do {
-            $response = $this->_get('/api/oms/pvt/orders/', $params);
+        while ($fromDate <= $today) {
+            $timeStamp = strtotime($fromDate);
+            $toDate = date('c', $timeStamp + $intervalSec);
 
-            if ($response->getStatusCode() === 200) {
-                $response    = json_decode($response->getBody());
-                $totalOrders = $response->paging->total;
-                foreach ($response->list as $vtexOrder) {
-                    if (!$this->isAllowedSeller($vtexOrder, $this->_allowedSellers)) {
-                        continue;
-                    }
-                    $order = $this->buildOrder($vtexOrder->orderId);
-                    foreach ($this->_filters as $filter) {
-                        if (method_exists($filter, 'getPurchasePoints') && (($points = $filter->getPurchasePoints($order)) != 0)) {
-                            $order['points'] = $points;
+            $dateFilter = "creationDate:[";
+            $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
+            $dateFilter .= "Z TO ";
+            $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp + $intervalSec);
+            $dateFilter .= "Z]";
+
+            $this->_logger->info("Dates " . $dateFilter);
+
+            $params['f_creationDate'] = $dateFilter;
+
+            do {
+                $response = $this->_get('/api/oms/pvt/orders/', $params);
+
+                if ($response->getStatusCode() === 200) {
+                    $response    = json_decode($response->getBody());
+                    $totalOrders = $response->paging->total;
+
+                    foreach ($response->list as $vtexOrder) {
+                        if (!$this->isAllowedSeller($vtexOrder, $this->_allowedSellers)) {
+                            continue;
                         }
+                        $order = $this->buildOrder($vtexOrder->orderId);
+                        foreach ($this->_filters as $filter) {
+                            if (method_exists($filter, 'getPurchasePoints') && (($points = $filter->getPurchasePoints($order)) != 0)) {
+                                $order['points'] = $points;
+                            }
+                        }
+                        yield $order;
                     }
-                    yield $order;
+                } else {
+                    throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
                 }
-            } else {
-                throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
-            }
-        } while (($params['page'] * $params['per_page']) < $totalOrders);
+            } while (($params['page'] * $params['per_page']) < $totalOrders);
+
+            $fromDate = date('c', $timeStamp + $intervalSec);
+        }
     }
 
     /**
