@@ -103,7 +103,7 @@ class VTEX
             $this->_appKey         = $vtexConfig['appKey'];
             $this->_appToken       = $vtexConfig['appToken'];
             $this->_appName        = $vtexConfig['appName'];
-            $this->_status         = isset($vtexConfig['status']) && $vtexConfig['status'] ? $status : [self::STATUS_INVOICED];
+            $this->_status         = isset($vtexConfig['status']) && $vtexConfig['status'] ? $vtexConfig['status'] : [self::STATUS_INVOICED];
             $this->_storeUrl       = $vtexConfig['storeUrl'];
             $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $vtexConfig['salesChannel'] : null;
             $this->_branchName     = isset($vtexConfig['branchName']) ? $vtexConfig['branchName'] : self::DEFAULT_BRANCH_NAME;
@@ -317,19 +317,16 @@ class VTEX
             'f_status' => join(',', $this->_status),
             'page'     => self::ORDERS_QUERY_PARAMS['page'],
             'per_page' => self::ORDERS_QUERY_PARAMS['per_page'],
+            'orderBy'  => self::ORDERS_QUERY_PARAMS['orderBy'],
         );
 
-        if ($order) {
-            $params['orderBy'] = self::ORDERS_QUERY_PARAMS['orderBy'];
-        }
-
-        if ($from_date != null) {
+        if ($fromDate != null) {
             $params += array(
-                'f_creationDate' => $from_date,
+                'f_creationDate' => $fromDate,
             );
         }
 
-        if ($salesChannel) {
+        if ($this->_salesChannel) {
             $params += ['f_salesChannel' => $this->_salesChannel];
         }
 
@@ -703,7 +700,7 @@ class VTEX
             }
         } catch (\Exception $e) {
             $this->_logger->error("Error getting variations: " . $e->getMessage());
-            return null;
+            return [];
         }
     }
 
@@ -1135,7 +1132,7 @@ class VTEX
         }
 
         $this->_logger->info("Max request attempts reached");
-        return null;
+        return $response;
     }
 
     /**
