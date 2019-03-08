@@ -288,10 +288,15 @@ class VTEX
                 $response = json_decode($e->getResponse()->getBody(), true);
                 if ($e->getResponse()->getStatusCode() == 404) {
                     // no existe el producto
-                    $this->_woowupClient->products->create($product);
-                    $this->_logger->info("[Product] {$product['sku']} Created Successfully");
-                    $this->_woowupStats['products']['created']++;
-                    return true;
+                    try {
+                        $this->_woowupClient->products->create($product);
+                        $this->_logger->info("[Product] {$product['sku']} Created Successfully");
+                        $this->_woowupStats['products']['created']++;
+                        return true;
+                    } catch (\Exception $e) {
+                        $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $e->getCode() . "', Message '" $e->getMessage() . "'");
+                        $this->_woowupStats['products']['failed'][] = $product;
+                    }
                 } else {
                     $errorCode    = $response['code'];
                     $errorMessage = $response['payload']['errors'][0];
