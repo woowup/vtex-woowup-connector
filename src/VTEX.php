@@ -294,7 +294,7 @@ class VTEX
                         $this->_woowupStats['products']['created']++;
                         return true;
                     } catch (\Exception $e) {
-                        $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $e->getCode() . "', Message '" $e->getMessage() . "'");
+                        $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
                         $this->_woowupStats['products']['failed'][] = $product;
                     }
                 } else {
