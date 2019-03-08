@@ -1150,7 +1150,12 @@ class VTEX
 
                 return $response;
             } catch (\Exception $e) {
-                $this->_logger->error("Error at request attempt " . $e->getMessage());
+                if (method_exists($e, 'getResponse') && ($e->getResponse()->getStatusCode() === 404)) {
+                    $this->_logger->info("404 Not found");
+                    return $e->getResponse();
+                } else {
+                    $this->_logger->error("Error at request attempt " . $e->getMessage());
+                }
             }
             $attempts++;
         }
