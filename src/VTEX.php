@@ -86,7 +86,7 @@ class VTEX
     const VTEX_CONFIG_REQUIRED = ['appName', 'appKey', 'appToken', 'storeUrl'];
 
     const ORDERS_QUERY_PARAMS = [
-        'page'     => 1,
+        'page'     => 0,
         'orderBy'  => 'creationDate,asc',
         'per_page' => 200,
     ];
@@ -182,7 +182,7 @@ class VTEX
 
         if (count($this->_woowupStats['customers']['failed']) > 0) {
             $this->_logger->info("Retrying failed customers");
-            $failedCustomers = $this->_woowupStats['customers']['failed'];
+            $failedCustomers                           = $this->_woowupStats['customers']['failed'];
             $this->_woowupStats['customers']['failed'] = [];
             foreach ($failedCustomers as $customer) {
                 $this->upsertCustomer($customer);
@@ -329,8 +329,8 @@ class VTEX
             $fromDate = date('Y-m-d', strtotime('-5 days'));
         }
 
-        $today = date('c');
-        $fromDate = date('c', strtotime($fromDate));
+        $today       = date('c');
+        $fromDate    = date('c', strtotime($fromDate));
         $intervalSec = 3600 * 3;
 
         if ($this->_salesChannel) {
@@ -348,7 +348,7 @@ class VTEX
 
         while ($fromDate <= $today) {
             $timeStamp = strtotime($fromDate);
-            $toDate = date('c', $timeStamp + $intervalSec);
+            $toDate    = date('c', $timeStamp + $intervalSec);
 
             $dateFilter = "creationDate:[";
             $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
@@ -361,6 +361,8 @@ class VTEX
             $params['f_creationDate'] = $dateFilter;
 
             do {
+                $params['page']++;
+
                 $response = $this->_get('/api/oms/pvt/orders/', $params);
 
                 if ($response->getStatusCode() === 200) {
@@ -453,11 +455,11 @@ class VTEX
 
         $params = [
             '_fields' => '_all',
-            '_where' => 'updatedIn>' . $updatedAtMin,
+            '_where'  => 'updatedIn>' . $updatedAtMin,
         ];
 
         $offset = 0;
-        $limit = 100;
+        $limit  = 100;
 
         do {
             $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit);
@@ -466,7 +468,7 @@ class VTEX
                 'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
             ];
 
-            $response = $this->_get('/api/dataentities/'. $dataEntity . '/search', $params, $requestHeaders);
+            $response = $this->_get('/api/dataentities/' . $dataEntity . '/search', $params, $requestHeaders);
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
@@ -478,8 +480,7 @@ class VTEX
                     yield $customer;
                 }
             }
-            
-            
+
             $totalCustomers = explode('/', $response->getHeader('REST-Content-Range')[0])[1];
             $offset += $limit;
         } while ($offset < $totalCustomers);
@@ -487,17 +488,17 @@ class VTEX
 
     public function buildCustomer($vtexCustomer)
     {
-        $email = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->email : null;
+        $email    = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->email : null;
         $document = isset($vtexCustomer->document) && !empty($vtexCustomer->document) ? $vtexCustomer->document : null;
 
         if (!empty($email) || !empty($document)) {
             $customer = [
-                'email' => $email,
-                'document' => $document,
-                'first_name' => ucwords(mb_strtolower($vtexCustomer->firstName)),
-                'last_name' => ucwords(mb_strtolower($vtexCustomer->lastName)),
-                'birthdate' => isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate) ? $vtexCustomer->birthDate : null,
-                'phone' => isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone) ? $vtexCustomer->homePhone : null,
+                'email'         => $email,
+                'document'      => $document,
+                'first_name'    => ucwords(mb_strtolower($vtexCustomer->firstName)),
+                'last_name'     => ucwords(mb_strtolower($vtexCustomer->lastName)),
+                'birthdate'     => isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate) ? $vtexCustomer->birthDate : null,
+                'phone'         => isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone) ? $vtexCustomer->homePhone : null,
                 'document_type' => isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType) ? $vtexCustomer->documentType : null,
             ];
 
@@ -845,8 +846,6 @@ class VTEX
 
         return $variations;
     }
-
-
 
     /**
      * Maps one single VTEX payment to WoowUp's payment format
