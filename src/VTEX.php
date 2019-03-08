@@ -86,7 +86,7 @@ class VTEX
     const VTEX_CONFIG_REQUIRED = ['appName', 'appKey', 'appToken', 'storeUrl'];
 
     const ORDERS_QUERY_PARAMS = [
-        'page'     => 1,
+        'page'     => 0,
         'orderBy'  => 'creationDate,asc',
         'per_page' => 200,
     ];
@@ -361,6 +361,8 @@ class VTEX
             $params['f_creationDate'] = $dateFilter;
 
             do {
+                $params['page']++;
+
                 $response = $this->_get('/api/oms/pvt/orders/', $params);
 
                 if ($response->getStatusCode() === 200) {
@@ -382,8 +384,6 @@ class VTEX
                 } else {
                     throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
                 }
-
-                $params['page']++;
             } while (($params['page'] * $params['per_page']) < $totalOrders);
 
             $fromDate = date('c', $timeStamp + $intervalSec);
