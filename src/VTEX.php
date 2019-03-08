@@ -361,7 +361,7 @@ class VTEX
             $this->_logger->info("Dates " . $dateFilter);
 
             $params['f_creationDate'] = $dateFilter;
-            $params['page'] = self::ORDERS_QUERY_PARAMS['page'];
+            $params['page']           = self::ORDERS_QUERY_PARAMS['page'];
 
             do {
                 $params['page']++;
@@ -464,15 +464,17 @@ class VTEX
 
         $offset = 0;
         $limit  = 100;
+        $page   = 0;
 
         do {
-            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit);
+            $page++;
+            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
 
             $requestHeaders = [
                 'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
             ];
 
-            $response = $this->_get('/api/dataentities/' . $dataEntity . '/search', $params, $requestHeaders);
+            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders);
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
@@ -485,9 +487,9 @@ class VTEX
                 }
             }
 
-            $totalCustomers = explode('/', $response->getHeader('REST-Content-Range')[0])[1];
-            $offset += $limit;
-        } while ($offset < $totalCustomers);
+            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
+            $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
+        } while (($limit * $page) < $totalCustomers);
     }
 
     public function buildCustomer($vtexCustomer)
