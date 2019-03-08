@@ -93,6 +93,8 @@ class VTEX
 
     const MAX_REQUEST_ATTEMPTS = 5;
 
+    const DEFAULT_SLEEP_USEC = 100000;
+
     public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $woowupClient)
     {
         try {
@@ -620,7 +622,7 @@ class VTEX
                 'product_name'  => $item->name,
                 'quantity'      => (int) $item->quantity,
                 'unit_price'    => (float) $item->price / 100,
-                'variations'    => $this->getVariations($item),
+                'variations'    => ($variatons = $this->getVariations($item)) ? $variatons : [],
                 'url'           => rtrim($this->_storeUrl, '/') . '/' . ltrim($item->detailUrl, '/'),
                 'image_url'     => $item->imageUrl,
                 'thumbnail_url' => $this->normalizeResizedImageUrl($item->imageUrl),
@@ -704,6 +706,7 @@ class VTEX
     public function getProductRefId($productId)
     {
         try {
+            $this->_logger->info("Searching RefId for productId $productId");
             $product = $this->getProductByProductId($productId);
             return $product->RefId;
         } catch (\Exception $e) {
@@ -719,6 +722,7 @@ class VTEX
      */
     public function getVariations($vtexItem)
     {
+        $this->_logger->info("Getting variations");
         try {
             $response = $this->_get('/api/catalog_system/pub/products/variations/' . $vtexItem->productId, []);
 
@@ -933,7 +937,7 @@ class VTEX
         $response = $this->_get('/api/catalog_system/pvt/products/ProductGet/' . $productId);
 
         if ($response->getStatusCode() === 200) {
-            return $response->getBody();
+            return json_decode($response->getBody());
         } else {
             throw new Exception($response->getReasonPhrase(), $response->getStatusCode());
         }
@@ -1152,14 +1156,18 @@ class VTEX
 
                 return $response;
             } catch (\Exception $e) {
-                if (method_exists($e, 'getResponse') && ($e->getResponse()->getStatusCode() === 404)) {
-                    $this->_logger->info("404 Not found");
-                    return $e->getResponse();
+                if (method_exists($e, 'getResponse')) {
+                    $response = $e->getResponse();
+                    $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
+                    if (($response->getStatusCode() === 404) || ($response->getStatusCode() === 400)) {
+                        return $response;
+                    }
                 } else {
                     $this->_logger->error("Error at request attempt " . $e->getMessage());
                 }
             }
             $attempts++;
+            usleep(self::DEFAULT_SLEEP_USEC * $attempts);
         }
 
         $this->_logger->info("Max request attempts reached");
