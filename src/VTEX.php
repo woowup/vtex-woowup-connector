@@ -489,7 +489,7 @@ class VTEX
 
             $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
             $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
-        } while (($limit * $page) < $totalCustomers);
+        } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
     public function buildCustomer($vtexCustomer)
