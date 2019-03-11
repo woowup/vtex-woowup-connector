@@ -88,7 +88,7 @@ class VTEX
     const ORDERS_QUERY_PARAMS = [
         'page'     => 0,
         'orderBy'  => 'creationDate,asc',
-        'per_page' => 200,
+        'per_page' => 100,
     ];
 
     const MAX_REQUEST_ATTEMPTS = 5;
