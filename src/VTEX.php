@@ -1191,7 +1191,7 @@ class VTEX
      * Adds a filter to connector
      * @param FilterInterface $filter [description]
      */
-    public function addFilter(FilterInterface $filter)
+    public function addFilter($filter)
     {
         $this->_filters[] = $filter;
         return true;

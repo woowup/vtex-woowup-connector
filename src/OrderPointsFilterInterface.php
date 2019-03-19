@@ -2,8 +2,7 @@
 
 namespace WoowUpConnectors;
 
-interface FilterInterface
+interface OrderPointsFilterInterface
 {
-    public function filterSku($sku);
     public function getPurchasePoints($order);
 }
