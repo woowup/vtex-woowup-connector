@@ -534,11 +534,12 @@ class VTEX
             'channel'         => 'web',
             'createtime'      => date('c', strtotime($vtexOrder->creationDate)),
             'approvedtime'    => date('c'),
-            'branch_name'     => $this->_branchName,
+            'branch_name'     => $this->getOrderBranch($vtexOrder),
             'customer'        => $this->buildCustomerFromOrder($vtexOrder),
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
             'payment'         => $this->getOrderPayments($vtexOrder),
             'prices'          => $this->getOrderPrices($vtexOrder),
+            'seller'          => $this->getOrderSeller($vtexOrder),
         ];
 
         if (isset($order['customer']['document']) && ($order['customer']['document'] !== "")) {
@@ -568,6 +569,31 @@ class VTEX
         } else {
             throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
         }
+    }
+
+    /**
+     * Maps VTEX marketplace to WoowUp's API branch name
+     * @param  object $vtexOrder VTEX order
+     * @return string
+     */
+    public function getOrderBranch($vtexOrder)
+    {
+        $branchName = null;
+
+        if (isset($vtexOrder->marketplace->name)) {
+            $branchName = $vtexOrder->marketplace->name;
+        } else {
+            preg_match('/an=\w+$/', $vtexOrder->marketplaceServicesEndpoint, $marketplace);
+
+            if (count($marketplace) > 0) {
+                $marketplace = $marketplace[0];
+                $branchName = str_replace('an=', '', $marketplace);
+            } else {
+                $branchName = $this->_branchName;
+            }
+        }
+
+        return ($branchName == $this->_appName) ? $this->_branchName : $branchName;
     }
 
     /**
@@ -698,6 +724,25 @@ class VTEX
         $prices['total'] = $prices['gross'] - $prices['discount'];
 
         return $prices;
+    }
+
+    /**
+     * Calculates WoowUp's seller based on VTEX's callCenterOperatorData
+     * @param  [type] $vtexOrder [description]
+     * @return [type]            [description]
+     */
+    public function getOrderSeller($vtexOrder)
+    {
+        $seller = null;
+
+        if ($vtexOrder->callCenterOperatorData && isset($vtexOrder->callCenterOperatorData->email)) {
+            $seller = [
+                'email'    => $vtexOrder->callCenterOperatorData->email,
+                'name'      => isset($vtexOrder->callCenterOperatorData->userName),
+            ];
+        }
+
+        return $seller;
     }
 
     /**
