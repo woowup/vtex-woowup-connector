@@ -539,8 +539,11 @@ class VTEX
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
             'payment'         => $this->getOrderPayments($vtexOrder),
             'prices'          => $this->getOrderPrices($vtexOrder),
-            'seller'          => $this->getOrderSeller($vtexOrder),
         ];
+
+        if (($seller = $this->getOrderSeller($vtexOrder)) !== null) {
+            $order['seller'] = $seller;
+        }
 
         if (isset($order['customer']['document']) && ($order['customer']['document'] !== "")) {
             $order['document'] = $order['customer']['document'];
