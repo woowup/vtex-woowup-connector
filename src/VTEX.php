@@ -6,43 +6,6 @@ use Psr;
 
 class VTEX
 {
-    private $_host;
-    private $_appName;
-    private $_appKey;
-    private $_appToken;
-    private $_status;
-    private $_branchName;
-    private $_storeUrl;
-    private $_allowedSellers;
-    private $_syncCategories;
-    private $_salesChannel;
-
-    private $_categories;
-    private $_filters;
-
-    private $_httpClient;
-    private $_woowupClient;
-    private $_logger;
-
-    private $_woowupStats = [
-        'customers' => [
-            'created' => 0,
-            'updated' => 0,
-            'failed'  => [],
-        ],
-        'orders'    => [
-            'created'    => 0,
-            'updated'    => 0,
-            'duplicated' => 0,
-            'failed'     => [],
-        ],
-        'products'  => [
-            'created' => 0,
-            'updated' => 0,
-            'failed'  => [],
-        ],
-    ];
-
     const STATUS_INVOICED = 'invoiced';
     const CUSTOMER_TAG    = 'VTEX';
 
@@ -94,6 +57,43 @@ class VTEX
     const MAX_REQUEST_ATTEMPTS = 5;
 
     const DEFAULT_SLEEP_USEC = 100000;
+
+    private $_host;
+    private $_appName;
+    private $_appKey;
+    private $_appToken;
+    private $_status;
+    private $_branchName;
+    private $_storeUrl;
+    private $_allowedSellers;
+    private $_syncCategories;
+    private $_salesChannel;
+
+    private $_categories;
+    private $_filters;
+
+    private $_httpClient;
+    private $_woowupClient;
+    private $_logger;
+
+    private $_woowupStats = [
+        'customers' => [
+            'created' => 0,
+            'updated' => 0,
+            'failed'  => [],
+        ],
+        'orders'    => [
+            'created'    => 0,
+            'updated'    => 0,
+            'duplicated' => 0,
+            'failed'     => [],
+        ],
+        'products'  => [
+            'created' => 0,
+            'updated' => 0,
+            'failed'  => [],
+        ],
+    ];
 
     public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $woowupClient)
     {
@@ -195,122 +195,6 @@ class VTEX
         $this->_logger->info("Created customers: " . $this->_woowupStats['customers']['created']);
         $this->_logger->info("Updated customers: " . $this->_woowupStats['customers']['updated']);
         $this->_logger->info("Failed customers: " . count($this->_woowupStats['customers']['failed']));
-    }
-
-    public function upsertOrder($order, $update)
-    {
-        try {
-            $this->_woowupClient->purchases->create($order);
-            $this->_logger->info("[Purchase] {$order['invoice_number']} Created Successfully");
-            $this->_woowupStats['orders']['created']++;
-            return true;
-        } catch (\Exception $e) {
-            if (method_exists($e, 'getResponse')) {
-                $response = json_decode($e->getResponse()->getBody(), true);
-                switch ($response['code']) {
-                    case 'user_not_found':
-                        $this->_logger->info("[Purchase] {$order['invoice_number']} Error: customer not found");
-                        $this->_woowupStats['orders']['failed'][] = $order;
-                        return false;
-                        break;
-                    case 'duplicated_purchase_number':
-                        $this->_logger->info("[Purchase] {$order['invoice_number']} Duplicated");
-                        $this->_woowupStats['orders']['duplicated']++;
-                        if ($update) {
-                            $this->_woowupClient->purchases->update($order);
-                            $this->_logger->info("[Purchase] {$order['invoice_number']} Updated Successfully");
-                            $this->_woowupStats['orders']['updated']++;
-                        }
-                        return true;
-                        break;
-                    default:
-                        $errorCode    = $response['code'];
-                        $errorMessage = $response['payload']['errors'][0];
-                        break;
-                }
-            } else {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
-            }
-            $this->_logger->info("[Purchase] {$order['invoice_number']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
-            $this->_woowupStats['orders']['failed'][] = $order;
-
-            return false;
-        }
-    }
-
-    public function upsertCustomer($customer)
-    {
-        $customerIdentity = [
-            'email'    => isset($customer['email']) ? $customer['email'] : '',
-            'document' => isset($customer['document']) ? $customer['document'] : '',
-        ];
-        try {
-            if (!$this->_woowupClient->multiusers->exist($customerIdentity)) {
-                $this->_woowupClient->users->create($customer);
-                $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Created Successfully");
-                $this->_woowupStats['customers']['created']++;
-            } else {
-                $this->_woowupClient->multiusers->update($customer);
-                $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Updated Successfully");
-                $this->_woowupStats['customers']['updated']++;
-            }
-        } catch (\Exception $e) {
-            if (method_exists($e, 'getResponse')) {
-                $response     = json_decode($e->getResponse()->getBody(), true);
-                $errorCode    = $response['code'];
-                $errorMessage = $response['payload']['errors'][0];
-            } else {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
-            }
-            $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Error:  Code '" . $errorCode . "', Message '" . $errorMessage . "'");
-            $this->_woowupStats['customers']['failed'][] = $customer;
-
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Crea/Actualiza un producto en WoowUp
-     * @param  array $product Producto en formato WoowUp
-     * @return boolean        true: producto actualizado/creado con éxito, false: error
-     */
-    protected function upsertProduct($product)
-    {
-        try {
-            $this->_woowupClient->products->update($product['sku'], $product);
-            $this->_logger->info("[Product] {$product['sku']} Updated Successfully");
-            $this->_woowupStats['products']['updated']++;
-            return true;
-        } catch (\Exception $e) {
-            if (method_exists($e, 'getResponse')) {
-                $response = json_decode($e->getResponse()->getBody(), true);
-                if ($e->getResponse()->getStatusCode() == 404) {
-                    // no existe el producto
-                    try {
-                        $this->_woowupClient->products->create($product);
-                        $this->_logger->info("[Product] {$product['sku']} Created Successfully");
-                        $this->_woowupStats['products']['created']++;
-                        return true;
-                    } catch (\Exception $e) {
-                        $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
-                        $this->_woowupStats['products']['failed'][] = $product;
-                    }
-                } else {
-                    $errorCode    = $response['code'];
-                    $errorMessage = $response['payload']['errors'][0];
-                }
-            } else {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
-            }
-            $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
-            $this->_woowupStats['products']['failed'][] = $product;
-            return false;
-        }
     }
 
     /**
@@ -492,7 +376,151 @@ class VTEX
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
-    public function buildCustomer($vtexCustomer)
+    /**
+     * Adds a filter to connector
+     * @param FilterInterface $filter [description]
+     */
+    public function addFilter($filter)
+    {
+        $this->_filters[] = $filter;
+        return true;
+    }
+
+    /**
+     * Sets HTTP Client that fits ClientInterface
+     * @param ClientInterface $httpClient [description]
+     */
+    public function setHttpClient(ClientInterface $httpClient)
+    {
+        $this->_httpClient = $httpClient;
+    }
+
+    /**
+     * Sets Logger that fits LoggerInterface
+     * @param LoggerInterface $logger [description]
+     */
+    public function setLogger(LoggerInterface $logger)
+    {
+        $this->_logger = $logger;
+    }
+
+    protected function upsertOrder($order, $update)
+    {
+        try {
+            $this->_woowupClient->purchases->create($order);
+            $this->_logger->info("[Purchase] {$order['invoice_number']} Created Successfully");
+            $this->_woowupStats['orders']['created']++;
+            return true;
+        } catch (\Exception $e) {
+            if (method_exists($e, 'getResponse')) {
+                $response = json_decode($e->getResponse()->getBody(), true);
+                switch ($response['code']) {
+                    case 'user_not_found':
+                        $this->_logger->info("[Purchase] {$order['invoice_number']} Error: customer not found");
+                        $this->_woowupStats['orders']['failed'][] = $order;
+                        return false;
+                        break;
+                    case 'duplicated_purchase_number':
+                        $this->_logger->info("[Purchase] {$order['invoice_number']} Duplicated");
+                        $this->_woowupStats['orders']['duplicated']++;
+                        if ($update) {
+                            $this->_woowupClient->purchases->update($order);
+                            $this->_logger->info("[Purchase] {$order['invoice_number']} Updated Successfully");
+                            $this->_woowupStats['orders']['updated']++;
+                        }
+                        return true;
+                        break;
+                    default:
+                        $errorCode    = $response['code'];
+                        $errorMessage = $response['payload']['errors'][0];
+                        break;
+                }
+            } else {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
+            }
+            $this->_logger->info("[Purchase] {$order['invoice_number']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->_woowupStats['orders']['failed'][] = $order;
+
+            return false;
+        }
+    }
+
+    protected function upsertCustomer($customer)
+    {
+        $customerIdentity = [
+            'email'    => isset($customer['email']) ? $customer['email'] : '',
+            'document' => isset($customer['document']) ? $customer['document'] : '',
+        ];
+        try {
+            if (!$this->_woowupClient->multiusers->exist($customerIdentity)) {
+                $this->_woowupClient->users->create($customer);
+                $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Created Successfully");
+                $this->_woowupStats['customers']['created']++;
+            } else {
+                $this->_woowupClient->multiusers->update($customer);
+                $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Updated Successfully");
+                $this->_woowupStats['customers']['updated']++;
+            }
+        } catch (\Exception $e) {
+            if (method_exists($e, 'getResponse')) {
+                $response     = json_decode($e->getResponse()->getBody(), true);
+                $errorCode    = $response['code'];
+                $errorMessage = $response['payload']['errors'][0];
+            } else {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
+            }
+            $this->_logger->info("[Customer] " . implode(',', $customerIdentity) . " Error:  Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->_woowupStats['customers']['failed'][] = $customer;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Crea/Actualiza un producto en WoowUp
+     * @param  array $product Producto en formato WoowUp
+     * @return boolean        true: producto actualizado/creado con éxito, false: error
+     */
+    protected function upsertProduct($product)
+    {
+        try {
+            $this->_woowupClient->products->update($product['sku'], $product);
+            $this->_logger->info("[Product] {$product['sku']} Updated Successfully");
+            $this->_woowupStats['products']['updated']++;
+            return true;
+        } catch (\Exception $e) {
+            if (method_exists($e, 'getResponse')) {
+                $response = json_decode($e->getResponse()->getBody(), true);
+                if ($e->getResponse()->getStatusCode() == 404) {
+                    // no existe el producto
+                    try {
+                        $this->_woowupClient->products->create($product);
+                        $this->_logger->info("[Product] {$product['sku']} Created Successfully");
+                        $this->_woowupStats['products']['created']++;
+                        return true;
+                    } catch (\Exception $e) {
+                        $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
+                        $this->_woowupStats['products']['failed'][] = $product;
+                    }
+                } else {
+                    $errorCode    = $response['code'];
+                    $errorMessage = $response['payload']['errors'][0];
+                }
+            } else {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
+            }
+            $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->_woowupStats['products']['failed'][] = $product;
+            return false;
+        }
+    }
+
+    protected function buildCustomer($vtexCustomer)
     {
         $email    = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->email : null;
         $document = isset($vtexCustomer->document) && !empty($vtexCustomer->document) ? $vtexCustomer->document : null;
@@ -525,7 +553,7 @@ class VTEX
      * @param  object $vtexOrderId VTEX order
      * @return array               WoowUp order
      */
-    public function buildOrder($vtexOrderId)
+    protected function buildOrder($vtexOrderId)
     {
         $vtexOrder = $this->getOrder($vtexOrderId);
 
@@ -561,7 +589,7 @@ class VTEX
      * @param  [type] $vtexOrderId [description]
      * @return [type]              [description]
      */
-    public function getOrder($vtexOrderId)
+    protected function getOrder($vtexOrderId)
     {
         $this->_logger->info("Getting order " . $vtexOrderId . "... ");
         $response = $this->_get('/api/oms/pvt/orders/' . $vtexOrderId);
@@ -579,7 +607,7 @@ class VTEX
      * @param  object $vtexOrder VTEX order
      * @return string
      */
-    public function getOrderBranch($vtexOrder)
+    protected function getOrderBranch($vtexOrder)
     {
         $branchName = null;
 
@@ -604,7 +632,7 @@ class VTEX
      * @param  [type] $vtexOrder [description]
      * @return [type]            [description]
      */
-    public function buildCustomerFromOrder($vtexOrder)
+    protected function buildCustomerFromOrder($vtexOrder)
     {
         $customer = [
             'email'         => $this->unmaskEmail($vtexOrder->clientProfileData->email),
@@ -635,7 +663,7 @@ class VTEX
      * @param  array $items VTEX order's item list
      * @return array        WoowUp's purchase_detail
      */
-    public function buildOrderDetails($items)
+    protected function buildOrderDetails($items)
     {
         $purchaseDetail = [];
         foreach ($items as $item) {
@@ -676,7 +704,7 @@ class VTEX
      * @param  object $vtexOrder VTEX order
      * @return array             WoowUp's payment
      */
-    public function getOrderPayments($vtexOrder)
+    protected function getOrderPayments($vtexOrder)
     {
         $payment = [];
         if (isset($vtexOrder->paymentData) && isset($vtexOrder->paymentData->transactions)) {
@@ -697,7 +725,7 @@ class VTEX
      * @param  [type] $vtexOrder [description]
      * @return [type]            [description]
      */
-    public function getOrderPrices($vtexOrder)
+    protected function getOrderPrices($vtexOrder)
     {
         $prices = [
             'gross'    => 0,
@@ -734,7 +762,7 @@ class VTEX
      * @param  [type] $vtexOrder [description]
      * @return [type]            [description]
      */
-    public function getOrderSeller($vtexOrder)
+    protected function getOrderSeller($vtexOrder)
     {
         $seller = null;
 
@@ -753,7 +781,7 @@ class VTEX
      * @param  [type] $productId [description]
      * @return [type]            [description]
      */
-    public function getProductRefId($productId)
+    protected function getProductRefId($productId)
     {
         try {
             $this->_logger->info("Searching RefId for productId $productId");
@@ -770,7 +798,7 @@ class VTEX
      * @param  [type] $vtexItem [description]
      * @return [type]           [description]
      */
-    public function getVariations($vtexItem)
+    protected function getVariations($vtexItem)
     {
         $this->_logger->info("Getting variations");
         try {
@@ -791,7 +819,7 @@ class VTEX
      * @param  [type] $vtexConfig [description]
      * @return [type]             [description]
      */
-    public function checkVtexConfig($vtexConfig)
+    protected function checkVtexConfig($vtexConfig)
     {
         foreach (self::VTEX_CONFIG_REQUIRED as $parameter) {
             if (!isset($vtexConfig[$parameter])) {
@@ -802,25 +830,7 @@ class VTEX
         return true;
     }
 
-    /**
-     * Sets HTTP Client that fits ClientInterface
-     * @param ClientInterface $httpClient [description]
-     */
-    public function setHttpClient(ClientInterface $httpClient)
-    {
-        $this->_httpClient = $httpClient;
-    }
-
-    /**
-     * Sets Logger that fits LoggerInterface
-     * @param LoggerInterface $logger [description]
-     */
-    public function setLogger(LoggerInterface $logger)
-    {
-        $this->_logger = $logger;
-    }
-
-    public function getCategoryLeaves($categoryTree, $parentPath = "")
+    protected function getCategoryLeaves($categoryTree, $parentPath = "")
     {
         $leaves = [];
         $parentPath .= $categoryTree['id'] . '/';
@@ -842,7 +852,7 @@ class VTEX
      * @param  array   $allowedSellers  array of allowed sellers
      * @return boolean $isAllowedSeller isAllowedSeller
      */
-    public function isAllowedSeller($vtexOrder, $allowedSellers)
+    protected function isAllowedSeller($vtexOrder, $allowedSellers)
     {
         if (!is_null($allowedSellers) && isset($vtexOrder->sellers) && (count($vtexOrder->sellers) > 0)) {
             foreach ($vtexOrder->sellers as $seller) {
@@ -860,7 +870,7 @@ class VTEX
      * @param  [type] $imageUrl [description]
      * @return [type]           [description]
      */
-    public function normalizeResizedImageUrl($imageUrl)
+    protected function normalizeResizedImageUrl($imageUrl)
     {
         // Le saco los parametros de resize de imagen que son los digitos despues del id.
         $regex = '/([\S]+vteximg\.com\.br\/arquivos\/ids\/\d+)\-\d+\-\d+(\/[\S]+)/';
@@ -873,7 +883,7 @@ class VTEX
      * @param  string $needleItemId   searched VTEX item id
      * @return array                  WoowUp's variations
      */
-    public function buildVariations($vtexVariations, $needleItemId)
+    protected function buildVariations($vtexVariations, $needleItemId)
     {
         $variations = [];
 
@@ -908,7 +918,7 @@ class VTEX
      * @param  [type] $vtexPayment [description]
      * @return [type]              [description]
      */
-    public function buildOrderPayment($vtexPayment)
+    protected function buildOrderPayment($vtexPayment)
     {
         $payment = [
             'type'  => $this->getPaymentType($vtexPayment->group),
@@ -948,7 +958,7 @@ class VTEX
      * @param  [type] $type [description]
      * @return [type]       [description]
      */
-    public function getPaymentType($type)
+    protected function getPaymentType($type)
     {
         // retorno el valor por default de la BD
         if (empty($type)) {
@@ -982,7 +992,7 @@ class VTEX
      * @param  [type] $productId [description]
      * @return [type]            [description]
      */
-    public function getProductByProductId($productId)
+    protected function getProductByProductId($productId)
     {
         $response = $this->_get('/api/catalog_system/pvt/products/ProductGet/' . $productId);
 
@@ -998,7 +1008,7 @@ class VTEX
      * @param  [type] $alias [description]
      * @return [type]        [description]
      */
-    public function unmaskEmail($alias)
+    protected function unmaskEmail($alias)
     {
         try {
             $this->_logger->info("Converting $alias...");
@@ -1036,7 +1046,7 @@ class VTEX
      * @param  [type] $vtexBaseProduct [description]
      * @return [type]                  [description]
      */
-    public function buildProducts($vtexBaseProduct)
+    protected function buildProducts($vtexBaseProduct)
     {
         $baseProduct = [
             'brand'       => $vtexBaseProduct->brand,
@@ -1077,7 +1087,7 @@ class VTEX
      * Gets VTEX category tree and converts it to WoowUp's API category format
      * @return [type] [description]
      */
-    public function getCategoryTree()
+    protected function getCategoryTree()
     {
         $response = $this->_get('/api/catalog_system/pub/category/tree/10', []);
 
@@ -1102,7 +1112,7 @@ class VTEX
      * @param  array  $parentPath   [description]
      * @return [type]               [description]
      */
-    public function flatternCategoryTree($categoryTree, $parentPath = [])
+    protected function flatternCategoryTree($categoryTree, $parentPath = [])
     {
         $categories = [];
 
@@ -1126,7 +1136,7 @@ class VTEX
      * @param  [type] $vtexCategory [description]
      * @return [type]               [description]
      */
-    public function getCategoryInfo($vtexCategory)
+    protected function getCategoryInfo($vtexCategory)
     {
         $categoryInfo = [
             'id'       => (string) $vtexCategory->id,
@@ -1149,7 +1159,7 @@ class VTEX
      * @param  [type] $vtexItem [description]
      * @return [type]           [description]
      */
-    public function getItemStock($vtexItem)
+    protected function getItemStock($vtexItem)
     {
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->AvailableQuantity)) {
             return $vtexItem->sellers[0]->commertialOffer->AvailableQuantity;
@@ -1163,7 +1173,7 @@ class VTEX
      * @param  [type] $vtexItem [description]
      * @return [type]           [description]
      */
-    public function getItemPrice($vtexItem)
+    protected function getItemPrice($vtexItem)
     {
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->Price)) {
             return $vtexItem->sellers[0]->commertialOffer->Price;
@@ -1188,7 +1198,7 @@ class VTEX
      * @param  [type] $vtexItem [description]
      * @return [type]           [description]
      */
-    public function getItemListPrice($vtexItem)
+    protected function getItemListPrice($vtexItem)
     {
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->ListPrice)) {
             return $vtexItem->sellers[0]->commertialOffer->ListPrice;
@@ -1259,15 +1269,5 @@ class VTEX
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
         return $this->_request('GET', $endpoint, $queryParams, $headers);
-    }
-
-    /**
-     * Adds a filter to connector
-     * @param FilterInterface $filter [description]
-     */
-    public function addFilter($filter)
-    {
-        $this->_filters[] = $filter;
-        return true;
     }
 }
