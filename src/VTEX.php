@@ -1066,7 +1066,8 @@ class VTEX
                 'sku'           => $sku,
                 'name'          => $vtexProduct->name,
                 'base_name'     => $vtexProduct->nameComplete,
-                'price'         => $this->getItemPrice($vtexProduct),
+                'price'         => $this->getItemListPrice($vtexProduct),
+                'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
             ];
         }
@@ -1166,6 +1167,31 @@ class VTEX
     {
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->Price)) {
             return $vtexItem->sellers[0]->commertialOffer->Price;
+        } else {
+            $vtexItemId = $vtexItem->itemId;
+            $this->_logger->info("Getting price for item Id " . $vtexItemId . "... ");
+            $response = $this->_get('/api/pricing/prices/' . $vtexItemId);
+
+            if ($response->getStatusCode() !== 200) {
+                $this->_logger->info("Not found :(");
+                return 0;
+            } else {
+                $body = json_decode($response->getBody());
+                $this->_logger->info("Sucess!");
+                return $body->basePrice;
+            }
+        }
+    }
+
+    /**
+     * Gets list price from vtex item, if not set finds it in API
+     * @param  [type] $vtexItem [description]
+     * @return [type]           [description]
+     */
+    public function getItemListPrice($vtexItem)
+    {
+        if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->ListPrice)) {
+            return $vtexItem->sellers[0]->commertialOffer->ListPrice;
         } else {
             $vtexItemId = $vtexItem->itemId;
             $this->_logger->info("Getting price for item Id " . $vtexItemId . "... ");
