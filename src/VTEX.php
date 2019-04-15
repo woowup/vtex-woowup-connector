@@ -120,6 +120,13 @@ class VTEX
         }
     }
 
+    /**
+     * Searches orders since a date in VTEX and imports them into WoowUp
+     * @param  [type]  $fromDate  FORMAT ['Y-m-d'] (Example '2018-12-31')
+     * @param  boolean $updating  update duplicated orders
+     * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
+     * @return [type]             [description]
+     */
     public function importOrders($fromDate = null, $updating = false, $importing = false)
     {
         $this->_logger->info("Importing orders for " . $this->_appName);
@@ -129,7 +136,7 @@ class VTEX
             $this->_logger->info("No starting date specified");
         }
         $this->_logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
-        $this->_logger->info("Approving orders at excecution time? " . ($importing ? "Yes" : "No"));
+        $this->_logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
 
         foreach ($this->getOrders($fromDate, $importing) as $order) {
             $this->upsertCustomer($order['customer']);
@@ -565,7 +572,7 @@ class VTEX
             'invoice_number'  => $vtexOrderId,
             'channel'         => 'web',
             'createtime'      => $createtime,
-            'approvedtime'    => $importing ? date('c') : $createtime,
+            'approvedtime'    => $importing ? $createtime : date('c'),
             'branch_name'     => $this->getOrderBranch($vtexOrder),
             'customer'        => $this->buildCustomerFromOrder($vtexOrder),
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
