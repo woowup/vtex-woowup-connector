@@ -120,7 +120,7 @@ class VTEX
         }
     }
 
-    public function importOrders($updateOrders = false, $fromDate = null)
+    public function importOrders($fromDate = null, $updating = false, $importing = false)
     {
         $this->_logger->info("Importing orders for " . $this->_appName);
         if ($fromDate !== null) {
@@ -128,10 +128,12 @@ class VTEX
         } else {
             $this->_logger->info("No starting date specified");
         }
+        $this->_logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
+        $this->_logger->info("Approving orders at excecution time? " . ($importing ? "Yes" : "No"));
 
-        foreach ($this->getOrders($fromDate) as $order) {
+        foreach ($this->getOrders($fromDate, $importing) as $order) {
             $this->upsertCustomer($order['customer']);
-            $this->upsertOrder($order, $updateOrders);
+            $this->upsertOrder($order, $updating);
         }
 
         if (count($this->_woowupStats['orders']['failed']) > 0) {
@@ -140,7 +142,7 @@ class VTEX
             $this->_woowupStats['orders']['failed'] = [];
             foreach ($failedOrders as $order) {
                 $this->upsertCustomer($order['customer']);
-                $this->upsertOrder($order, $updateOrders);
+                $this->upsertOrder($order, $updating);
             }
         }
 
@@ -202,7 +204,7 @@ class VTEX
      * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
      * @return array   $orders         orders in WoowUp's API format
      */
-    public function getOrders($fromDate = null)
+    public function getOrders($fromDate = null, $importing = false)
     {
         $params = array(
             'f_status' => join(',', $this->_status),
@@ -261,7 +263,7 @@ class VTEX
                         if (!$this->isAllowedSeller($vtexOrder, $this->_allowedSellers)) {
                             continue;
                         }
-                        $order = $this->buildOrder($vtexOrder->orderId);
+                        $order = $this->buildOrder($vtexOrder->orderId, $importing);
                         foreach ($this->_filters as $filter) {
                             if (method_exists($filter, 'getPurchasePoints') && (($points = $filter->getPurchasePoints($order)) != 0)) {
                                 $order['points'] = $points;
@@ -553,15 +555,17 @@ class VTEX
      * @param  object $vtexOrderId VTEX order
      * @return array               WoowUp order
      */
-    protected function buildOrder($vtexOrderId)
+    protected function buildOrder($vtexOrderId, $importing = false)
     {
         $vtexOrder = $this->getOrder($vtexOrderId);
+
+        $createtime = date('c', strtotime($vtexOrder->creationDate));
 
         $order = [
             'invoice_number'  => $vtexOrderId,
             'channel'         => 'web',
-            'createtime'      => date('c', strtotime($vtexOrder->creationDate)),
-            'approvedtime'    => date('c'),
+            'createtime'      => $createtime,
+            'approvedtime'    => $importing ? date('c') : $createtime,
             'branch_name'     => $this->getOrderBranch($vtexOrder),
             'customer'        => $this->buildCustomerFromOrder($vtexOrder),
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
