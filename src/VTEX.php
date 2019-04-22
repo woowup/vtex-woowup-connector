@@ -597,7 +597,7 @@ class VTEX
 
         $address = [
             'street' => $street,
-            'postalcode' => $vtexAddress->postalCode,
+            'postcode' => $vtexAddress->postalCode,
             'city' => ucwords(mb_strtolower($vtexAddress->city)),
             'state' => ucwords(mb_strtolower($vtexAddress->state)),
             'country' => $vtexAddress->country,
