@@ -313,7 +313,7 @@ class VTEX
 
         foreach ($categoryLeaves as $leaf) {
             do {
-                $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name']);
+                $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
                 $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']]);
 
@@ -545,6 +545,15 @@ class VTEX
                 'document_type' => isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType) ? $vtexCustomer->documentType : null,
             ];
 
+            try {
+                $address = $this->getAddress($vtexCustomer->id);
+                if (isset($address)) {
+                    $customer += $address;
+                }
+            } catch (\Exception $e) {
+                $this->_logger->info("Error getting address: " . $e->getMessage());
+            }
+
             foreach ($customer as $key => $value) {
                 if (is_null($customer[$key]) || empty($customer[$key])) {
                     unset($customer[$key]);
@@ -555,6 +564,46 @@ class VTEX
         }
 
         return null;
+    }
+
+    protected function getAddress($userId)
+    {
+        $this->_logger->info("Getting address for user: $userId");
+        $params = [
+            'userId' => $userId,
+            '_fields' => '_all',
+        ];
+
+        $response = $this->_get('/api/dataentities/AD/search', $params);
+        if ($response->getStatusCode() !== 200) {
+            throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+        }
+
+        $this->_logger->info("Success!");
+        $address = json_decode($response->getBody());
+
+        if (is_array($address) && !empty($address)) {
+            return $this->buildAddress(array_pop($address));
+        } else {
+            $this->_logger->info("No address found");
+            return null;
+        }
+    }
+
+    protected function buildAddress($vtexAddress)
+    {
+        $street = ucwords(mb_strtolower($vtexAddress->street));
+        $street .= isset($vtexAddress->number) ? (' ' . $vtexAddress->number) : '';
+
+        $address = [
+            'street' => $street,
+            'postcode' => $vtexAddress->postalCode,
+            'city' => ucwords(mb_strtolower($vtexAddress->city)),
+            'state' => ucwords(mb_strtolower($vtexAddress->state)),
+            'country' => $vtexAddress->country,
+        ];
+
+        return $address;
     }
 
     /**
@@ -845,6 +894,11 @@ class VTEX
     {
         $leaves = [];
         $parentPath .= $categoryTree['id'] . '/';
+
+        if (isset($categoryTree['name'])) {
+            $leaves[] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
+        }
+
         if (isset($categoryTree['children']) && !empty($categoryTree['children'])) {
             // No es hoja
             foreach ($categoryTree['children'] as $childCategory) {
