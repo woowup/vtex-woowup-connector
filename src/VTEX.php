@@ -313,7 +313,7 @@ class VTEX
 
         foreach ($categoryLeaves as $leaf) {
             do {
-                $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name']);
+                $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
                 $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']]);
 
@@ -894,6 +894,11 @@ class VTEX
     {
         $leaves = [];
         $parentPath .= $categoryTree['id'] . '/';
+
+        if (isset($categoryTree['name'])) {
+            $leaves[] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
+        }
+
         if (isset($categoryTree['children']) && !empty($categoryTree['children'])) {
             // No es hoja
             foreach ($categoryTree['children'] as $childCategory) {
