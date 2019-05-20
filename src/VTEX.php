@@ -181,7 +181,7 @@ class VTEX
         // Actualizo los que no están más disponibles
         $page = 0; $limit = 100;
         $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
-        do {
+        while (is_array($woowUpProducts) && (count($woowUpProducts) > 0)) {
             foreach ($woowUpProducts as $wuProduct) {
                 // Si el producto no está en VTEX lo deshabilito
                 if (!in_array($wuProduct->sku, $updatedSkus)) {
@@ -198,7 +198,7 @@ class VTEX
                 $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
             }
 
-        } while (is_array($woowUpProducts) && (count($woowUpProducts) > 0));
+        }
 
         $this->_logger->info("Finished. Stats:");
         $this->_logger->info("Created products: " . $this->_woowupStats['products']['created']);
@@ -555,6 +555,7 @@ class VTEX
 
     protected function getWoowUpRecommendableProducts($page, $limit = 100)
     {
+        $this->_logger->info("Getting WoowUp products page $page limit $limit");
         try {
             return $this->_woowupClient->products->search(['with_stock' => true], $page, $limit);
         } catch (\Exception $e) {
