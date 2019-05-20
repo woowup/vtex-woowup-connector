@@ -1135,9 +1135,14 @@ class VTEX
                     $sku = $auxSku ? $auxSku : $sku;
                 }
             }
+            $imageUrl = null;
+            if (isset($vtexProduct->images[0]) && isset($vtexProduct->images[0]->imageUrl)) {
+                $imageUrl = $this->normalizeResizedImageUrl($vtexProduct->images[0]->imageUrl);
+            }
+
             yield $baseProduct + [
-                'image_url'     => $vtexProduct->images[0]->imageUrl,
-                'thumbnail_url' => $vtexProduct->images[0]->imageUrl,
+                'image_url'     => $imageUrl,
+                'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
                 'name'          => $vtexProduct->name,
                 'base_name'     => $vtexProduct->nameComplete,
