@@ -162,9 +162,11 @@ class VTEX
 
     public function importProducts()
     {
+        $updatedSkus = [];
         $this->_logger->info("Importing products");
         foreach ($this->getProducts() as $product) {
             $this->upsertProduct($product);
+            $updatedSkus[] = $product['sku'];
         }
 
         if (count($this->_woowupStats['products']['failed']) > 0) {
@@ -174,6 +176,28 @@ class VTEX
             foreach ($failedProducts as $product) {
                 $this->upsertProduct($product);
             }
+        }
+
+        // Actualizo los que no están más disponibles
+        $page = 0; $limit = 100;
+        $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
+        while (is_array($woowUpProducts) && (count($woowUpProducts) > 0)) {
+            foreach ($woowUpProducts as $wuProduct) {
+                // Si el producto no está en VTEX lo deshabilito
+                if (!in_array($wuProduct->sku, $updatedSkus)) {
+                    $this->_logger->info("Product " . $wuProduct->sku . " no longer available");
+                    $this->upsertProduct([
+                        'sku'       => $wuProduct->sku,
+                        'name'      => $wuProduct->name,
+                        'available' => false,
+                        'stock'     => 0,
+                    ]);
+                }
+
+                $page++;
+                $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
+            }
+
         }
 
         $this->_logger->info("Finished. Stats:");
@@ -526,6 +550,16 @@ class VTEX
             $this->_logger->info("[Product] {$product['sku']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
             $this->_woowupStats['products']['failed'][] = $product;
             return false;
+        }
+    }
+
+    protected function getWoowUpRecommendableProducts($page, $limit = 100)
+    {
+        $this->_logger->info("Getting WoowUp products page $page limit $limit");
+        try {
+            return $this->_woowupClient->products->search(['with_stock' => true], $page, $limit);
+        } catch (\Exception $e) {
+            var_dump($e->getMessage());
         }
     }
 
@@ -1135,9 +1169,14 @@ class VTEX
                     $sku = $auxSku ? $auxSku : $sku;
                 }
             }
+            $imageUrl = null;
+            if (isset($vtexProduct->images[0]) && isset($vtexProduct->images[0]->imageUrl)) {
+                $imageUrl = $this->normalizeResizedImageUrl($vtexProduct->images[0]->imageUrl);
+            }
+
             yield $baseProduct + [
-                'image_url'     => $vtexProduct->images[0]->imageUrl,
-                'thumbnail_url' => $vtexProduct->images[0]->imageUrl,
+                'image_url'     => $imageUrl,
+                'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
                 'name'          => $vtexProduct->name,
                 'base_name'     => $vtexProduct->nameComplete,
