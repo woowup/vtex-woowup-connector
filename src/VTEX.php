@@ -183,6 +183,7 @@ class VTEX
         $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
         while (is_array($woowUpProducts) && (count($woowUpProducts) > 0)) {
             foreach ($woowUpProducts as $wuProduct) {
+
                 // Si el producto no está en VTEX lo deshabilito
                 if (!in_array($wuProduct->sku, $updatedSkus)) {
                     $this->_logger->info("Product " . $wuProduct->sku . " no longer available");
@@ -193,10 +194,10 @@ class VTEX
                         'stock'     => 0,
                     ]);
                 }
-
-                $page++;
-                $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
             }
+
+            $page++;
+            $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
 
         }
 
@@ -930,16 +931,16 @@ class VTEX
         $parentPath .= $categoryTree['id'] . '/';
 
         if (isset($categoryTree['name'])) {
-            $leaves[] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
+            $leaves[$categoryTree['id']] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
         }
 
         if (isset($categoryTree['children']) && !empty($categoryTree['children'])) {
             // No es hoja
             foreach ($categoryTree['children'] as $childCategory) {
-                $leaves = array_merge($leaves, $this->getCategoryLeaves($childCategory, $parentPath));
+                $leaves += $this->getCategoryLeaves($childCategory, $parentPath);
             }
         } else {
-            $leaves[] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
+            $leaves[$categoryTree['id']] = ['id' => $categoryTree['id'], 'name' => $categoryTree['name'], 'path' => $parentPath];
         }
 
         return $leaves;
