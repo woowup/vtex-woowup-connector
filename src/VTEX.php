@@ -183,6 +183,7 @@ class VTEX
         $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
         while (is_array($woowUpProducts) && (count($woowUpProducts) > 0)) {
             foreach ($woowUpProducts as $wuProduct) {
+
                 // Si el producto no está en VTEX lo deshabilito
                 if (!in_array($wuProduct->sku, $updatedSkus)) {
                     $this->_logger->info("Product " . $wuProduct->sku . " no longer available");
@@ -193,10 +194,10 @@ class VTEX
                         'stock'     => 0,
                     ]);
                 }
-
-                $page++;
-                $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
             }
+
+            $page++;
+            $woowUpProducts = $this->getWoowUpRecommendableProducts($page, $limit);
 
         }
 
