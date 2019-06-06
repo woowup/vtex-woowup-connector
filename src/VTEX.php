@@ -297,8 +297,8 @@ class VTEX
                         }
                         $order = $this->buildOrder($vtexOrder->orderId, $importing);
                         foreach ($this->_filters as $filter) {
-                            if (method_exists($filter, 'getPurchasePoints') && (($points = $filter->getPurchasePoints($order)) != 0)) {
-                                $order['points'] = $points;
+                            if (method_exists($filter, 'filterOrder')) {
+                                $order = $filter->filterOrder($order);
                             }
                         }
                         yield $order;
