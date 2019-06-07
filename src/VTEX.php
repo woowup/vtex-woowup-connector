@@ -1164,7 +1164,6 @@ class VTEX
                 continue;
             }
             $sku = $vtexProduct->referenceId[0]->Value;
-            $name = $this->buildProductName($sku, $vtexProduct);
             foreach ($this->_filters as $filter) {
                 if (method_exists($filter, 'filterSku')) {
                     $auxSku = $filter->filterSku($sku);
@@ -1181,7 +1180,7 @@ class VTEX
                 'image_url'     => $imageUrl,
                 'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
-                'name'          => $name,
+                'name'          => $vtexProduct->name,
                 'price'         => $this->getItemListPrice($vtexProduct),
                 'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
@@ -1322,24 +1321,6 @@ class VTEX
                 return $body->listPrice;
             }
         }
-    }
-
-    protected static function buildProductName($sku, $item)
-    {
-        if (isset($item->referenceId)) {
-            foreach ($item->referenceId as $key => $value) {
-                if ($value->Key == 'RefId' && $value->Value == $sku) {
-                    //Estoy en el item que corresponde
-
-                    if (isset($item->name)) {
-                        $name = $item->name;
-                        return trim($name);
-                    }
-                }
-            }
-        }
-
-        return $productVtex->productName;
     }
 
     /**
