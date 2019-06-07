@@ -1164,6 +1164,7 @@ class VTEX
                 continue;
             }
             $sku = $vtexProduct->referenceId[0]->Value;
+            $name = $this->buildProductName($sku, $vtexProduct);
             foreach ($this->_filters as $filter) {
                 if (method_exists($filter, 'filterSku')) {
                     $auxSku = $filter->filterSku($sku);
@@ -1180,7 +1181,7 @@ class VTEX
                 'image_url'     => $imageUrl,
                 'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
-                'name'          => $this->buildProductName($sku, $vtexProduct),
+                'name'          => $name,
                 'price'         => $this->getItemListPrice($vtexProduct),
                 'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
