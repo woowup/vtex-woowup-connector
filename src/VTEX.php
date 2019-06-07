@@ -1152,6 +1152,7 @@ class VTEX
             'brand'       => $vtexBaseProduct->brand,
             'description' => $vtexBaseProduct->description,
             'url'         => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->_storeUrl, $vtexBaseProduct->link),
+            'base_name'   => $vtexBaseProduct->productName,
         ];
 
         if (isset($this->_categories[$vtexBaseProduct->categoryId])) {
@@ -1179,8 +1180,7 @@ class VTEX
                 'image_url'     => $imageUrl,
                 'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
-                'name'          => $vtexProduct->name,
-                'base_name'     => $vtexProduct->nameComplete,
+                'name'          => $this->buildProductName($sku, $vtexProduct),
                 'price'         => $this->getItemListPrice($vtexProduct),
                 'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
@@ -1321,6 +1321,24 @@ class VTEX
                 return $body->listPrice;
             }
         }
+    }
+
+    protected static function buildProductName($sku, $item)
+    {
+        if (isset($item->referenceId)) {
+            foreach ($item->referenceId as $key => $value) {
+                if ($value->Key == 'RefId' && $value->Value == $sku) {
+                    //Estoy en el item que corresponde
+
+                    if (isset($item->name)) {
+                        $name = $item->name;
+                        return trim($name);
+                    }
+                }
+            }
+        }
+
+        return $productVtex->productName;
     }
 
     /**
