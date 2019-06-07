@@ -1152,6 +1152,7 @@ class VTEX
             'brand'       => $vtexBaseProduct->brand,
             'description' => $vtexBaseProduct->description,
             'url'         => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->_storeUrl, $vtexBaseProduct->link),
+            'base_name'   => $vtexBaseProduct->productName,
         ];
 
         if (isset($this->_categories[$vtexBaseProduct->categoryId])) {
@@ -1180,7 +1181,6 @@ class VTEX
                 'thumbnail_url' => $imageUrl,
                 'sku'           => $sku,
                 'name'          => $vtexProduct->name,
-                'base_name'     => $vtexProduct->nameComplete,
                 'price'         => $this->getItemListPrice($vtexProduct),
                 'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
