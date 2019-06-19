@@ -1,0 +1,204 @@
+<?php
+
+namespace WoowUpConnectors;
+
+use WoowUpConnectors\VTEXConnector;
+use WoowUpConnectors\WoowUpHandler;
+use WoowUpConnectors\Stages\Customers\VTEXCustomerDownloader;
+use WoowUpConnectors\Stages\Customers\VTEXWoowUpCustomerMapper;
+use WoowUpConnectors\Stages\Customers\WoowUpCustomerUploader;
+use WoowUpConnectors\Stages\Orders\VTEXOrderDownloader;
+use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
+use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
+use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
+use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
+use League\Pipeline\Pipeline;
+
+class VTEXWoowUp
+{
+	protected $downloadStage;
+	protected $preMapStages = [];
+	protected $mapStage;
+	protected $postMapStages = [];
+	protected $uploadStage;
+	protected $vtexConnector;
+	protected $logger;
+	protected $woowupClient;
+
+	public function __construct($vtexConfig, $httpClient, $logger, $woowupClient)
+	{
+		$this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger);
+		$this->logger        = $logger;
+		$this->woowupClient  = $woowupClient;
+	}
+
+	public function addPreMapStage($stage)
+	{
+		$this->preMapStages[] = $stage;
+	}
+
+	public function addPostMapStage($stage)
+	{
+		$this->postMapStages[] = $stage;
+	}
+
+	public function setDownloadStage($stage)
+	{
+		$this->downloadStage = $stage;
+	}
+
+	public function setMapStage($stage)
+	{
+		$this->mapStage = $stage;
+	}
+
+	public function setUploadStage($stage)
+	{
+		$this->uploadStage = $stage;
+	}
+
+	public function resetStages()
+	{
+		$this->downloadStage = null;
+		$this->preMapStages  = [];
+		$this->mapStage      = null;
+		$this->postMapStages = [];
+		$this->uploadStage   = null;
+
+		return $this;
+	}
+
+	public function run($param)
+	{
+		$pipeline = new Pipeline;
+
+		if ($this->downloadStage) {
+			$pipeline = $pipeline->pipe($this->downloadStage);
+		}
+		
+		foreach ($this->preMapStages as $stage) {
+			$pipeline = $pipeline->pipe($stage);
+		}
+
+		if ($this->mapStage) {
+			$pipeline = $pipeline->pipe($this->mapStage);
+		}
+
+		foreach ($this->postMapStages as $stage) {
+			$pipeline = $pipeline->pipe($stage);
+		}
+
+		if ($this->uploadStage) {
+			$pipeline = $pipeline->pipe($this->uploadStage);
+		}
+
+		return $pipeline->process($param);
+	}
+
+	/**
+     * Searches orders since a date in VTEX and imports them into WoowUp
+     * @param  [type]  $fromDate  FORMAT ['Y-m-d'] (Example '2018-12-31')
+     * @param  boolean $updating  update duplicated orders
+     * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
+     * @return [type]             [description]
+     */
+    public function importOrders($fromDate = null, $updating = false, $importing = false)
+    {
+    	$this->logger->info("Importing orders");
+        if ($fromDate !== null) {
+            $this->logger->info("Starting date: " . $fromDate);
+        } else {
+            $this->logger->info("No starting date specified");
+        }
+        $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
+        $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
+
+        // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
+        $this->setDownloadStage(new VTEXOrderDownloader($this->vtexConnector));
+		$this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
+		$this->setUploadStage(new WoowUpOrderUploader($this->woowupClient, $updating, $this->logger));
+
+        foreach ($this->vtexConnector->getOrders($fromDate, $importing) as $orderId) {
+        	$this->logger->info("Processing order $orderId");
+			$this->run($orderId);
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created orders: " . $woowupStats['orders']['created']);
+        $this->logger->info("Duplicated orders: " . $woowupStats['orders']['duplicated']);
+        $this->logger->info("Updated orders: " . $woowupStats['orders']['updated']);
+        $this->logger->info("Failed orders: " . count($woowupStats['orders']['failed']));
+        $this->logger->info("Created customers: " . $woowupStats['customers']['created']);
+        $this->logger->info("Updated customers: " . $woowupStats['customers']['updated']);
+        $this->logger->info("Failed customers: " . count($woowupStats['customers']['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+
+    public function importCustomers($days = 3, $dataEntity = "CL")
+    {
+        $this->logger->info("Importing customers from $days days and entity $dataEntity");
+        $fromDate = date('Y-m-d', strtotime("-$days days"));
+
+        $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
+        $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger));
+        $this->setUploadStage(new WoowUpCustomerUploader($this->woowupClient, $this->logger));
+
+        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomerId) {
+        	$this->logger->info("Processing customer " . $vtexCustomerId);
+        	$this->run($vtexCustomerId);
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created customers: " . $woowupStats['created']);
+        $this->logger->info("Updated customers: " . $woowupStats['updated']);
+        $this->logger->info("Failed customers: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+
+    public function importProducts()
+    {
+        $updatedSkus = [];
+        $this->logger->info("Importing products");
+
+        $this->setMapStage(new VTEXWoowUpProductMapper($this->vtexConnector));
+        $this->setUploadStage(new WoowUpProductUploader($this->woowupClient, $this->logger));
+
+        foreach ($this->vtexConnector->getProducts() as $vtexBaseProduct) {
+            $products = $this->run($vtexBaseProduct);
+            foreach ($products as $product) {
+            	$updatedSkus[] = $product['sku'];	
+            }
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        if (count($woowupStats['failed']) > 0) {
+            $this->logger->info("Retrying failed products");
+            // Los productos ya están procesados hasta el uploadStage
+            $this->uploadStage->retryFailed();
+        }
+
+        // Actualizo los que no están más disponibles
+        $this->uploadStage->updateUnavailable($updatedSkus);
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created products: " . $woowupStats['created']);
+        $this->logger->info("Updated products: " . $woowupStats['updated']);
+        $this->logger->info("Failed products: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+}
