@@ -236,7 +236,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         // retorno el valor por default de la BD
         if (empty($type)) {
-            return '';
+            return $this->vtexConnector::PAYMENT_TYPES['TYPE_OTHER'];
         }
 
         switch (strtolower($type)) {
