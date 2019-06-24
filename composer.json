@@ -3,7 +3,8 @@
    "description": "VTEX <> WoowUp Connector",
    "require": {
        "woowup/woowup-php-client": "dev-master",
-      "monolog/monolog": "^1.24"
+      "monolog/monolog": "^1.24",
+      "league/pipeline": "^1.0"
    },
    "autoload": {
        "psr-4": {
