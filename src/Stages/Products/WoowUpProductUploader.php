@@ -99,7 +99,7 @@ class WoowUpProductUploader implements StageInterface
     {
         $page = 0; $limit = 100;
 
-        $woowUpProducts      = $this->woowupClient->products->search(['with_stock' => true], $page, $limit);
+        $woowUpProducts      = $this->woowupClient->products->search(['available' => true], $page, $limit);
         $unavailableProducts = [];
 
         while (is_array($woowUpProducts) && (count($woowUpProducts) > 0)) {
@@ -121,7 +121,7 @@ class WoowUpProductUploader implements StageInterface
             $unavailableProducts = [];
 
             $page++;
-            $woowUpProducts = $this->woowupClient->products->search(['with_stock' => true], $page, $limit);
+            $woowUpProducts = $this->woowupClient->products->search(['available' => true], $page, $limit);
         }
     }
 }
