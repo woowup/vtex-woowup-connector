@@ -77,6 +77,7 @@ class VTEXWoowUp
 		}
 		
 		foreach ($this->preMapStages as $stage) {
+            $stage->setConnector($this->vtexConnector);
 			$pipeline = $pipeline->pipe($stage);
 		}
 
@@ -85,6 +86,7 @@ class VTEXWoowUp
 		}
 
 		foreach ($this->postMapStages as $stage) {
+            $stage->setConnector($this->vtexConnector);
 			$pipeline = $pipeline->pipe($stage);
 		}
 
