@@ -60,6 +60,7 @@ class VTEXWoowUpProductMapper implements StageInterface
                 'price'         => $this->getItemListPrice($vtexProduct),
                 'offer_price'   => $this->getItemPrice($vtexProduct),
                 'stock'         => $this->getItemStock($vtexProduct),
+                'available'     => true,
             ];
         }
     }
@@ -74,7 +75,7 @@ class VTEXWoowUpProductMapper implements StageInterface
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->AvailableQuantity)) {
             return $vtexItem->sellers[0]->commertialOffer->AvailableQuantity;
         } else {
-            return 0;
+            return null;
         }
     }
 
