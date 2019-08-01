@@ -4,6 +4,7 @@ namespace WoowUpConnectors;
 
 use WoowUpConnectors\VTEXConnector;
 use WoowUpConnectors\WoowUpHandler;
+use WoowUpConnectors\Stages\DebugUploadStage;
 use WoowUpConnectors\Stages\Customers\VTEXCustomerDownloader;
 use WoowUpConnectors\Stages\Customers\VTEXWoowUpCustomerMapper;
 use WoowUpConnectors\Stages\Customers\WoowUpCustomerUploader;
@@ -11,6 +12,7 @@ use WoowUpConnectors\Stages\Orders\VTEXOrderDownloader;
 use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
+use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
 use League\Pipeline\Pipeline;
 
@@ -104,7 +106,7 @@ class VTEXWoowUp
      * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
      * @return [type]             [description]
      */
-    public function importOrders($fromDate = null, $updating = false, $importing = false)
+    public function importOrders($fromDate = null, $updating = false, $importing = false, $debug = false)
     {
     	$this->logger->info("Importing orders");
         if ($fromDate !== null) {
@@ -116,9 +118,20 @@ class VTEXWoowUp
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
 
         // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
-        $this->setDownloadStage(new VTEXOrderDownloader($this->vtexConnector));
-		$this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
-		$this->setUploadStage(new WoowUpOrderUploader($this->woowupClient, $updating, $this->logger));
+        if (!$this->downloadStage) {
+            $this->setDownloadStage(new VTEXOrderDownloader($this->vtexConnector));
+        }
+
+        if (!$this->mapStage) {
+		    $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(($debug) ?
+                new DebugUploadStage() :
+                new WoowUpOrderUploader($this->woowupClient, $updating, $this->logger)
+            );
+        }
 
         foreach ($this->vtexConnector->getOrders($fromDate, $importing) as $orderId) {
         	$this->logger->info("Processing order $orderId");
@@ -141,14 +154,26 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($days = 3, $dataEntity = "CL")
+    public function importCustomers($days = 3, $debug = false, $dataEntity = "CL")
     {
         $this->logger->info("Importing customers from $days days and entity $dataEntity");
         $fromDate = date('Y-m-d', strtotime("-$days days"));
 
-        $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
-        $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger));
-        $this->setUploadStage(new WoowUpCustomerUploader($this->woowupClient, $this->logger));
+        if (!$this->downloadStage) {
+            $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
+        }
+
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                new DebugUploadStage() :
+                new WoowUpCustomerUploader($this->woowupClient, $this->logger)
+            );
+        }
 
         foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomerId) {
         	$this->logger->info("Processing customer " . $vtexCustomerId);
@@ -167,13 +192,22 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importProducts()
+    public function importProducts($debug = false)
     {
         $updatedSkus = [];
         $this->logger->info("Importing products");
 
-        $this->setMapStage(new VTEXWoowUpProductMapper($this->vtexConnector));
-        $this->setUploadStage(new WoowUpProductUploader($this->woowupClient, $this->logger));
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpProductMapper($this->vtexConnector));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                new WoowUpProductDebugger() :
+                new WoowUpProductUploader($this->woowupClient, $this->logger)
+            );
+        }
 
         foreach ($this->vtexConnector->getProducts() as $vtexBaseProduct) {
             $products = $this->run($vtexBaseProduct);
