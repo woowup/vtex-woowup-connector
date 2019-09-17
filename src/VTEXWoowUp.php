@@ -237,4 +237,9 @@ class VTEXWoowUp
 
         return true;
     }
+
+    public function getConnector()
+    {
+        return $this->vtexConnector;
+    }
 }
