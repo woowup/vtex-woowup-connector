@@ -55,9 +55,9 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
-    const MAX_REQUEST_ATTEMPTS = 5;
+    const MAX_REQUEST_ATTEMPTS = 10;
 
-    const DEFAULT_SLEEP_USEC = 100000;
+    const DEFAULT_SLEEP_SEC = 2;
 
     private $_host;
     private $_appName;
@@ -623,7 +623,7 @@ class VTEXConnector
                 }
             }
             $attempts++;
-            usleep(self::DEFAULT_SLEEP_USEC * $attempts);
+            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
 
         $this->_logger->info("Max request attempts reached");
