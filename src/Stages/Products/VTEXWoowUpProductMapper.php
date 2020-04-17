@@ -34,6 +34,7 @@ class VTEXWoowUpProductMapper implements StageInterface
             'description' => $vtexBaseProduct->description,
             'url'         => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->vtexConnector->getStoreUrl(), $vtexBaseProduct->link),
             'base_name'   => $vtexBaseProduct->productName,
+            'release_date'=> $vtexBaseProduct->releaseDate,
         ];
 
         $categories = $this->vtexConnector->getCategories();
