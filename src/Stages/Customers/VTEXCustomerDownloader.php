@@ -19,6 +19,10 @@ class VTEXCustomerDownloader implements StageInterface
 
 	public function __invoke($payload)
 	{
-		return $this->vtexConnector->downloadCustomer($payload, $this->dataEntity);
+		try {
+			return $this->vtexConnector->downloadCustomer($payload, $this->dataEntity);
+		} catch (\Exception $e) {
+			return null;
+		}
 	}
 }

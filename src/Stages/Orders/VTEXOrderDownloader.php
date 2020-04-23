@@ -15,6 +15,11 @@ class VTEXOrderDownloader implements StageInterface
 
 	public function __invoke($payload)
 	{
-		return $this->vtexConnector->downloadOrder($payload);
+		try {
+			return $this->vtexConnector->downloadOrder($payload);
+		} catch (\Exception $e) {
+			return null;
+		}
+
 	}
 }
