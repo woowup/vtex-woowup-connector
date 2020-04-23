@@ -18,88 +18,94 @@ use League\Pipeline\Pipeline;
 
 class VTEXWoowUp
 {
-	protected $downloadStage;
-	protected $preMapStages = [];
-	protected $mapStage;
-	protected $postMapStages = [];
-	protected $uploadStage;
-	protected $vtexConnector;
-	protected $logger;
-	protected $woowupClient;
+    protected $downloadStage;
+    protected $preMapStages = [];
+    protected $mapStage;
+    protected $postMapStages = [];
+    protected $uploadStage;
+    protected $vtexConnector;
+    protected $logger;
+    protected $woowupClient;
+    protected $pipeline;
 
-	public function __construct($vtexConfig, $httpClient, $logger, $woowupClient)
-	{
-		$this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger);
-		$this->logger        = $logger;
-		$this->woowupClient  = $woowupClient;
-	}
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient)
+    {
+        $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger);
+        $this->logger        = $logger;
+        $this->woowupClient  = $woowupClient;
+    }
 
-	public function addPreMapStage($stage)
-	{
-		$this->preMapStages[] = $stage;
-	}
+    public function addPreMapStage($stage)
+    {
+        $this->preMapStages[] = $stage;
+    }
 
-	public function addPostMapStage($stage)
-	{
-		$this->postMapStages[] = $stage;
-	}
+    public function addPostMapStage($stage)
+    {
+        $this->postMapStages[] = $stage;
+    }
 
-	public function setDownloadStage($stage)
-	{
-		$this->downloadStage = $stage;
-	}
+    public function setDownloadStage($stage)
+    {
+        $this->downloadStage = $stage;
+    }
 
-	public function setMapStage($stage)
-	{
-		$this->mapStage = $stage;
-	}
+    public function setMapStage($stage)
+    {
+        $this->mapStage = $stage;
+    }
 
-	public function setUploadStage($stage)
-	{
-		$this->uploadStage = $stage;
-	}
+    public function setUploadStage($stage)
+    {
+        $this->uploadStage = $stage;
+    }
 
-	public function resetStages()
-	{
-		$this->downloadStage = null;
-		$this->preMapStages  = [];
-		$this->mapStage      = null;
-		$this->postMapStages = [];
-		$this->uploadStage   = null;
+    public function resetStages()
+    {
+        $this->downloadStage = null;
+        $this->preMapStages  = [];
+        $this->mapStage      = null;
+        $this->postMapStages = [];
+        $this->uploadStage   = null;
 
-		return $this;
-	}
+        return $this;
+    }
 
-	public function run($param)
-	{
-		$pipeline = new Pipeline;
+    public function run($param)
+    {
+        return $this->pipeline->process($param);
+    }
 
-		if ($this->downloadStage) {
-			$pipeline = $pipeline->pipe($this->downloadStage);
-		}
-		
-		foreach ($this->preMapStages as $stage) {
+    protected function preparePipeline()
+    {
+        $pipeline = new Pipeline;
+
+        if ($this->downloadStage) {
+            $pipeline = $pipeline->pipe($this->downloadStage);
+        }
+
+        foreach ($this->preMapStages as $stage) {
             $stage->setConnector($this->vtexConnector);
-			$pipeline = $pipeline->pipe($stage);
-		}
+            $pipeline = $pipeline->pipe($stage);
+        }
 
-		if ($this->mapStage) {
-			$pipeline = $pipeline->pipe($this->mapStage);
-		}
+        if ($this->mapStage) {
+            $pipeline = $pipeline->pipe($this->mapStage);
+        }
 
-		foreach ($this->postMapStages as $stage) {
+        foreach ($this->postMapStages as $stage) {
             $stage->setConnector($this->vtexConnector);
-			$pipeline = $pipeline->pipe($stage);
-		}
+            $pipeline = $pipeline->pipe($stage);
+        }
 
-		if ($this->uploadStage) {
-			$pipeline = $pipeline->pipe($this->uploadStage);
-		}
+        if ($this->uploadStage) {
+            $pipeline = $pipeline->pipe($this->uploadStage);
+        }
 
-		return $pipeline->process($param);
-	}
+        $this->pipeline = $pipeline;
+    }
 
-	/**
+    /**
      * Searches orders since a date in VTEX and imports them into WoowUp
      * @param  [type]  $fromDate  FORMAT ['Y-m-d'] (Example '2018-12-31')
      * @param  boolean $updating  update duplicated orders
@@ -108,7 +114,7 @@ class VTEXWoowUp
      */
     public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false)
     {
-    	$this->logger->info("Importing orders");
+        $this->logger->info("Importing orders");
         if ($fromDate !== null) {
             $this->logger->info("Starting date: " . $fromDate);
         } else {
@@ -123,7 +129,7 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-		    $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
+            $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
         }
 
         if (!$this->uploadStage) {
@@ -133,6 +139,7 @@ class VTEXWoowUp
             );
         }
 
+        $this->preparePipeline();
         foreach ($this->vtexConnector->getOrders($fromDate, $toDate, $importing) as $orderId) {
         	$this->logger->info("Processing order $orderId");
 			$this->run($orderId);
@@ -175,9 +182,10 @@ class VTEXWoowUp
             );
         }
 
+        $this->preparePipeline();
         foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomerId) {
-        	$this->logger->info("Processing customer " . $vtexCustomerId);
-        	$this->run($vtexCustomerId);
+            $this->logger->info("Processing customer " . $vtexCustomerId);
+            $this->run($vtexCustomerId);
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
@@ -209,10 +217,11 @@ class VTEXWoowUp
             );
         }
 
+        $this->preparePipeline();
         foreach ($this->vtexConnector->getProducts() as $vtexBaseProduct) {
             $products = $this->run($vtexBaseProduct);
             foreach ($products as $product) {
-            	$updatedSkus[] = $product['sku'];	
+                $updatedSkus[] = $product['sku'];   
             }
         }
 
