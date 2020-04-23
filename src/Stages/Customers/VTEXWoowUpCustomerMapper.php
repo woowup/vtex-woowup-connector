@@ -19,6 +19,10 @@ class VTEXWoowUpCustomerMapper implements StageInterface
 
 	public function __invoke($payload)
 	{
+		if (is_null($payload)) {
+			return null;
+		}
+
 		return $this->buildCustomer($payload);
 	}
 
