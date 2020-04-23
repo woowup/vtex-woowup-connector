@@ -141,7 +141,7 @@ class VTEXConnector
      * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
      * @return array   $orders         orders in WoowUp's API format
      */
-    public function getOrders($fromDate = null, $importing = false)
+    public function getOrders($fromDate = null, $toDate = null, $importing = false)
     {
         $params = array(
             'f_status' => join(',', $this->_status),
@@ -154,7 +154,10 @@ class VTEXConnector
             $fromDate = date('Y-m-d', strtotime('-5 days'));
         }
 
-        $today       = date('c');
+        if ($toDate === null) {
+            $toDate = date('Y-m-d');
+        }
+        $toDate      = date('c', strtotime($toDate));
         $fromDate    = date('c', strtotime($fromDate));
         $intervalSec = 3600 * 3;
 
@@ -171,7 +174,7 @@ class VTEXConnector
             $this->_categories = [];
         }
 
-        while ($fromDate <= $today) {
+        while ($fromDate <= $toDate) {
             $timeStamp = strtotime($fromDate);
             $toDate    = date('c', $timeStamp + $intervalSec);
 

@@ -106,7 +106,7 @@ class VTEXWoowUp
      * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
      * @return [type]             [description]
      */
-    public function importOrders($fromDate = null, $updating = false, $importing = false, $debug = false)
+    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false)
     {
     	$this->logger->info("Importing orders");
         if ($fromDate !== null) {
@@ -133,7 +133,7 @@ class VTEXWoowUp
             );
         }
 
-        foreach ($this->vtexConnector->getOrders($fromDate, $importing) as $orderId) {
+        foreach ($this->vtexConnector->getOrders($fromDate, $toDate, $importing) as $orderId) {
         	$this->logger->info("Processing order $orderId");
 			$this->run($orderId);
         }
