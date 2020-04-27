@@ -176,7 +176,6 @@ class VTEXConnector
 
         while ($fromDate <= $toDate) {
             $timeStamp = strtotime($fromDate);
-            $toDate    = date('c', $timeStamp + $intervalSec);
 
             $dateFilter = "creationDate:[";
             $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
