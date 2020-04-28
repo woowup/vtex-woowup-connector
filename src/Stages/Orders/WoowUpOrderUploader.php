@@ -63,7 +63,7 @@ class WoowUpOrderUploader implements StageInterface
                         break;
                     default:
                         $errorCode    = $response['code'];
-                        $errorMessage = $response['payload']['errors'][0];
+                        $errorMessage = $response['payload']['errors'][0] ?? json_encode($response);
                         break;
                 }
             } else {

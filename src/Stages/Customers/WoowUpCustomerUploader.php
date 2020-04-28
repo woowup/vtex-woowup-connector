@@ -46,7 +46,7 @@ class WoowUpCustomerUploader implements StageInterface
             if (method_exists($e, 'getResponse')) {
                 $response     = json_decode($e->getResponse()->getBody(), true);
                 $errorCode    = $response['code'];
-                $errorMessage = $response['payload']['errors'][0];
+                $errorMessage = $response['payload']['errors'][0] ?? json_encode($response);
             } else {
                 $errorCode    = $e->getCode();
                 $errorMessage = $e->getMessage();
