@@ -47,7 +47,7 @@ class WoowUpProductUploader implements StageInterface
                         }
                     } else {
                         $errorCode    = $response['code'];
-                        $errorMessage = $response['payload']['errors'][0];
+                        $errorMessage = $response['payload']['errors'][0] ?? json_encode($response);
                     }
                 } else {
                     $errorCode    = $e->getCode();
