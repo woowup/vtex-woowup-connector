@@ -55,7 +55,7 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
-    const MAX_REQUEST_ATTEMPTS = 10;
+    const MAX_REQUEST_ATTEMPTS = 3;
 
     const DEFAULT_SLEEP_SEC = 2;
 
@@ -617,7 +617,7 @@ class VTEXConnector
                 if (method_exists($e, 'getResponse')) {
                     $response = $e->getResponse();
                     $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
-                    if (($response->getStatusCode() === 404) || ($response->getStatusCode() === 400)) {
+                    if (in_array($response->getStatusCode(), [400, 403, 404])) {
                         return $response;
                     }
                 } else {
