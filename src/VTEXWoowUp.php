@@ -10,6 +10,7 @@ use WoowUpConnectors\Stages\Customers\VTEXWoowUpCustomerMapper;
 use WoowUpConnectors\Stages\Customers\WoowUpCustomerUploader;
 use WoowUpConnectors\Stages\Orders\VTEXOrderDownloader;
 use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
+use WoowUpConnectors\Stages\Orders\WoowUpCCInfoStage;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
@@ -22,6 +23,7 @@ class VTEXWoowUp
     protected $preMapStages = [];
     protected $mapStage;
     protected $postMapStages = [];
+    protected $ccInfoStage;
     protected $uploadStage;
     protected $vtexConnector;
     protected $logger;
@@ -53,6 +55,11 @@ class VTEXWoowUp
     public function setMapStage($stage)
     {
         $this->mapStage = $stage;
+    }
+
+    public function setCCInfoStage($stage)
+    {
+        $this->ccInfoStage = $stage;
     }
 
     public function setUploadStage($stage)
@@ -91,6 +98,10 @@ class VTEXWoowUp
 
         if ($this->mapStage) {
             $pipeline = $pipeline->pipe($this->mapStage);
+        }
+
+        if ($this->ccInfoStage) {
+            $pipeline->pipe($this->ccInfoStage);
         }
 
         foreach ($this->postMapStages as $stage) {
@@ -132,6 +143,10 @@ class VTEXWoowUp
             $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
         }
 
+        if (!$this->ccInfoStage) {
+            $this->setCCInfoStage(new WoowUpCCInfoStage($this->woowupClient, $this->logger));
+        }
+
         if (!$this->uploadStage) {
             $this->setUploadStage(($debug) ?
                 new DebugUploadStage() :
@@ -141,8 +156,8 @@ class VTEXWoowUp
 
         $this->preparePipeline();
         foreach ($this->vtexConnector->getOrders($fromDate, $toDate, $importing) as $orderId) {
-        	$this->logger->info("Processing order $orderId");
-			$this->run($orderId);
+            $this->logger->info("Processing order $orderId");
+            $this->run($orderId);
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
