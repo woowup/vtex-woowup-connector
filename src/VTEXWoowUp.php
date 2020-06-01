@@ -101,7 +101,7 @@ class VTEXWoowUp
         }
 
         if ($this->ccInfoStage) {
-            $pipeline->pipe($this->ccInfoStage);
+            $pipeline = $pipeline->pipe($this->ccInfoStage);
         }
 
         foreach ($this->postMapStages as $stage) {
