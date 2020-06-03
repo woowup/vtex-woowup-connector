@@ -58,6 +58,7 @@ class VTEXConnector
     const MAX_REQUEST_ATTEMPTS = 3;
 
     const DEFAULT_SLEEP_SEC = 2;
+    const TOO_MANY_REQUESTS_SLEEP_SEC = 20;
 
     private $_host;
     private $_appName;
@@ -625,7 +626,10 @@ class VTEXConnector
                 }
             }
             $attempts++;
-            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
+            if (method_exists($e, 'getStatusCode') && $e->getStatusCode() == 429) {
+                sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
+            }
+            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts * $_times));
         }
 
         $this->_logger->info("Max request attempts reached");
