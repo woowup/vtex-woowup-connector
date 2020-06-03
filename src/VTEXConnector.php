@@ -629,7 +629,7 @@ class VTEXConnector
             if (method_exists($e, 'getStatusCode') && $e->getStatusCode() == 429) {
                 sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
             }
-            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts * $_times));
+            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
 
         $this->_logger->info("Max request attempts reached");
