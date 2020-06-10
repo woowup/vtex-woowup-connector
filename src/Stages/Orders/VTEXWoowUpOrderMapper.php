@@ -58,8 +58,8 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $order['email'] = $order['customer']['email'];
         }
 
-        if (@$order->packageAttachment->packages[0]->trackingNumber) {
-            $order['custom_attributes']['tracking_id'] = $order->packageAttachment->packages[0]->trackingNumber;
+        if (@$vtexOrder->packageAttachment->packages[0]->trackingNumber) {
+            $order['custom_attributes']['tracking_id'] = $vtexOrder->packageAttachment->packages[0]->trackingNumber;
         }
 
         return $order;
