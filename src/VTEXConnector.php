@@ -620,7 +620,7 @@ class VTEXConnector
                     $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
                     if (in_array($response->getStatusCode(), [400, 403, 404])) {
                         return $response;
-                    } elseif ($e->getStatusCode() == 429) {
+                    } elseif ($response->getStatusCode() == 429) {
                         sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     }
                 } else {
