@@ -620,15 +620,14 @@ class VTEXConnector
                     $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
                     if (in_array($response->getStatusCode(), [400, 403, 404])) {
                         return $response;
+                    } elseif ($response->getStatusCode() == 429) {
+                        sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     }
                 } else {
                     $this->_logger->error("Error at request attempt " . $e->getMessage());
                 }
             }
             $attempts++;
-            if (method_exists($e, 'getStatusCode') && $e->getStatusCode() == 429) {
-                sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
-            }
             sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
 
