@@ -40,7 +40,8 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             ];
 
             if (isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate)) {
-            	$customer['birthdate'] = $vtexCustomer->birthDate;
+                $birthdate = date('Y-m-d', strtotime($vtexCustomer->birthDate));
+                $customer['birthdate'] = $birthdate;
             }
 
             if (isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone)) {
