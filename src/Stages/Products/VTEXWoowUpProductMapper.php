@@ -42,6 +42,17 @@ class VTEXWoowUpProductMapper implements StageInterface
             $baseProduct['category'] = $categories[$vtexBaseProduct->categoryId];
         }
 
+        if (isset($vtexBaseProduct->allSpecifications) && !empty($vtexBaseProduct->allSpecifications)) {
+            $customAttributes = [];
+            $specificationNames = $vtexBaseProduct->allSpecifications;
+            foreach ($specificationNames as $specification) {
+                $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', utf8_encode($specification));
+                $specName = str_replace(' ', '_', $specName);
+                $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
+            }
+            $baseProduct['custom_attributes'] = $customAttributes;
+        }
+
         foreach ($vtexBaseProduct->items as $vtexProduct) {
             if (!isset($vtexProduct->referenceId) || empty($vtexProduct->referenceId) || !isset($vtexProduct->referenceId[0]->Value)) {
                 continue;
