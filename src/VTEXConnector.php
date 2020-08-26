@@ -248,7 +248,6 @@ class VTEXConnector
                 $this->_logger->info("Success!");
 
                 $total = explode('/', $response->getHeader('resources')[0])[1];
-
                 $vtexProducts = json_decode($response->getBody());
 
                 foreach ($vtexProducts as $vtexBaseProduct) {
@@ -257,6 +256,20 @@ class VTEXConnector
 
                 $offset += $limit;
             } while (($limit + $offset) < $total);
+            $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
+
+            $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit-1, 'fq' => 'C:' . $leaf['path']]);
+
+            if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $vtexProducts = json_decode($response->getBody());
+
+            foreach ($vtexProducts as $vtexBaseProduct) {
+                yield $vtexBaseProduct;
+            }
+
             $offset = self::PRODUCTS_SEARCH_OFFSET;
         }
 
