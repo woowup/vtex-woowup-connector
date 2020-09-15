@@ -62,6 +62,10 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $order['custom_attributes']['tracking_id'] = $vtexOrder->packageAttachment->packages[0]->trackingNumber;
         }
 
+        if (isset($vtexOrder->shippingData) && isset($vtexOrder->shippingData->logisticsInfo) && isset($vtexOrder->shippingData->logisticsInfo[0]) && isset($vtexOrder->shippingData->logisticsInfo[0]->deliveryIds) && isset($vtexOrder->shippingData->logisticsInfo[0]->deliveryIds[0]) && isset($vtexOrder->shippingData->logisticsInfo[0]->deliveryIds[0]->courierName) && !empty($vtexOrder->shippingData->logisticsInfo[0]->deliveryIds[0]->courierName)) {
+            $order['custom_attributes']['tienda_retiro'] = $vtexOrder->shippingData->logisticsInfo[0]->deliveryIds[0]->courierName;
+        }
+
         return $order;
     }
 
