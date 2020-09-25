@@ -18,6 +18,7 @@ class VTEXConnector
 
     const PRODUCTS_SEARCH_OFFSET = 0;
     const PRODUCTS_SEARCH_LIMIT  = 25;
+    const PRODUCTS_MAX_VALUE_FROM_PARAMETER = 2500;
 
     const DEFAULT_BRANCH_NAME = 'VTEX';
 
@@ -255,7 +256,7 @@ class VTEXConnector
                 }
 
                 $offset += $limit;
-            } while (($limit + $offset) < $total);
+            } while ((($limit + $offset) < $total) && ($offset < self::PRODUCTS_MAX_VALUE_FROM_PARAMETER));
             $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
             $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit-1, 'fq' => 'C:' . $leaf['path']]);
