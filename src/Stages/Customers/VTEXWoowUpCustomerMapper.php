@@ -6,6 +6,10 @@ use League\Pipeline\StageInterface;
 
 class VTEXWoowUpCustomerMapper implements StageInterface
 {
+    const COMMUNICATION_ENABLED  = 'enabled';
+    const COMMUNICATION_DISABLED = 'disabled';
+    const DISABLED_REASON_OTHER  = 'other';
+
 	protected $vtexConnector;
     protected $logger;
 
@@ -50,6 +54,18 @@ class VTEXWoowUpCustomerMapper implements StageInterface
 
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
             	$customer['document_type'] = $vtexCustomer->documentType;
+            }
+
+            if (isset($vtexCustomer->isNewsletterOptIn)) {
+                if (!$vtexCustomer->isNewsletterOptIn) {
+                    $customer['mailing_enabled']        = self::COMMUNICATION_DISABLED;
+                    $customer['sms_enabled']            = self::COMMUNICATION_DISABLED;
+                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    $customer['sms_enabled_reason']     = self::DISABLED_REASON_OTHER;
+                } else {
+                    $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                    $customer['sms_enabled']     = self::COMMUNICATION_ENABLED;
+                }
             }
 
             try {

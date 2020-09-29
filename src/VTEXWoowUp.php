@@ -176,10 +176,10 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($days = 3, $debug = false, $dataEntity = "CL")
+    public function importCustomers($days, $debug = false, $dataEntity = "CL")
     {
         $this->logger->info("Importing customers from $days days and entity $dataEntity");
-        $fromDate = date('Y-m-d', strtotime("-$days days"));
+        $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
