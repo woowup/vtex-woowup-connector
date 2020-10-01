@@ -4,78 +4,27 @@ namespace WoowUpConnectors\Stages\Products;
 
 use League\Pipeline\StageInterface;
 
-class VTEXWoowUpProductMapper implements StageInterface
+abstract class VTEXWoowUpProductMapper implements StageInterface
 {
-	protected $vtexConnector;
+    protected $vtexConnector;
 
-	public function __construct($vtexConnector)
-	{
-		$this->vtexConnector = $vtexConnector;
-
-		return $this;
-	}
-
-	public function __invoke($payload)
-	{
-		foreach ($this->buildProducts($payload) as $product) {
-			yield $product;
-		}
-	}
-
-	/**
-     * Builds different products from a base product
-     * @param  [type] $vtexBaseProduct [description]
-     * @return [type]                  [description]
-     */
-    protected function buildProducts($vtexBaseProduct)
+    public function __construct($vtexConnector)
     {
-        $baseProduct = [
-            'brand'       => $vtexBaseProduct->brand,
-            'description' => $vtexBaseProduct->description,
-            'url'         => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->vtexConnector->getStoreUrl(), $vtexBaseProduct->link),
-            'base_name'   => $vtexBaseProduct->productName,
-            'release_date'=> $vtexBaseProduct->releaseDate,
-        ];
+        $this->vtexConnector = $vtexConnector;
 
-        $categories = $this->vtexConnector->getCategories();
-        if (isset($categories[$vtexBaseProduct->categoryId])) {
-            $baseProduct['category'] = $categories[$vtexBaseProduct->categoryId];
-        }
+        return $this;
+    }
 
-        if (isset($vtexBaseProduct->allSpecifications) && !empty($vtexBaseProduct->allSpecifications)) {
-            $customAttributes = [];
-            $specificationNames = $vtexBaseProduct->allSpecifications;
-            foreach ($specificationNames as $specification) {
-                $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', utf8_encode($specification));
-                $specName = str_replace(' ', '_', $specName);
-                $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
-            }
-            $baseProduct['custom_attributes'] = $customAttributes;
-        }
-
-        foreach ($vtexBaseProduct->items as $vtexProduct) {
-            if (!isset($vtexProduct->referenceId) || empty($vtexProduct->referenceId) || !isset($vtexProduct->referenceId[0]->Value)) {
-                continue;
-            }
-            $sku = $vtexProduct->referenceId[0]->Value;
-
-            $imageUrl = null;
-            if (isset($vtexProduct->images[0]) && isset($vtexProduct->images[0]->imageUrl)) {
-                $imageUrl = $this->vtexConnector->normalizeResizedImageUrl($vtexProduct->images[0]->imageUrl);
-            }
-
-            yield $baseProduct + [
-                'image_url'     => $imageUrl,
-                'thumbnail_url' => $imageUrl,
-                'sku'           => $sku,
-                'name'          => $vtexProduct->name,
-                'price'         => $this->getItemListPrice($vtexProduct),
-                'offer_price'   => $this->getItemPrice($vtexProduct),
-                'stock'         => $this->getItemStock($vtexProduct),
-                'available'     => true,
-            ];
+    public function __invoke($payload)
+    {
+        foreach ($this->buildProducts($payload) as $product) {
+            yield $product;
         }
     }
+
+    abstract protected function hasSku($vtexBaseProduct);
+
+    abstract protected function buildProducts($vtexBaseProduct);
 
     /**
      * Gets stock for an item
@@ -118,7 +67,46 @@ class VTEXWoowUpProductMapper implements StageInterface
         } else {
             $vtexItemId = $vtexItem->itemId;
             $prices = $this->vtexConnector->searchItemPrices($vtexItem->itemId);
-			return $prices->listPrice;
+            return $prices->listPrice;
         }
+    }
+
+    public function hasImageUrl($baseProduct)
+    {
+        return isset($baseProduct->images[0]) && isset($baseProduct->images[0]->imageUrl);
+    }
+
+    public function hasCategory($categories, $vtexBaseProduct)
+    {
+        return isset($categories[$vtexBaseProduct->categoryId]);
+    }
+
+    public function hasSpecifications($vtexBaseProduct)
+    {
+        return isset($vtexBaseProduct->allSpecifications) && !empty($vtexBaseProduct->allSpecifications);
+    }
+
+    public function getImageUrl($baseProduct)
+    {
+        $imageUrl = null;
+        if ($this->hasImageUrl($baseProduct)) {
+            $imageUrl = $this->vtexConnector->normalizeResizedImageUrl($baseProduct->images[0]->imageUrl);
+        }
+        return $imageUrl;
+    }
+
+    public function getCustomAttributes($vtexBaseProduct)
+    {
+        if ($this->hasSpecifications($vtexBaseProduct)) {
+            $customAttributes   = [];
+            $specificationNames = $vtexBaseProduct->allSpecifications;
+            foreach ($specificationNames as $specification) {
+                $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', utf8_encode($specification));
+                $specName = str_replace(' ', '_', $specName);
+                $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
+            }
+            return $customAttributes;
+        }
+        return null;
     }
 }
