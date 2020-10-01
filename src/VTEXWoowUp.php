@@ -12,7 +12,7 @@ use WoowUpConnectors\Stages\Orders\VTEXOrderDownloader;
 use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
 use WoowUpConnectors\Stages\Orders\WoowUpCCInfoStage;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
-use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
+use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
 use League\Pipeline\Pipeline;
@@ -221,7 +221,7 @@ class VTEXWoowUp
         $this->logger->info("Importing products");
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpProductMapper($this->vtexConnector));
+            $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
         }
 
         if (!$this->uploadStage) {
