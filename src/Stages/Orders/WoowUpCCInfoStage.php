@@ -40,7 +40,7 @@ class WoowUpCCInfoStage implements StageInterface
             if (!isset($payment['first_digits'])) continue;
 
             try {
-                $response = json_decode($this->woowupClient->purchases->getDataFromFirstSixDigits($payment['first_digits']));
+                $response = json_decode($this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']));
             } catch (\Error $e) {
                 continue;
             }
