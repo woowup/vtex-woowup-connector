@@ -29,12 +29,14 @@ class VTEXWoowUp
     protected $logger;
     protected $woowupClient;
     protected $pipeline;
+    protected $errorHandler;
 
-    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient)
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler)
     {
         $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger);
         $this->logger        = $logger;
         $this->woowupClient  = $woowupClient;
+        $this->errorHandler  = $errorHandler;
     }
 
     public function addPreMapStage($stage)
@@ -144,7 +146,7 @@ class VTEXWoowUp
         }
 
         if (!$this->ccInfoStage) {
-            $this->setCCInfoStage(new WoowUpCCInfoStage($this->woowupClient, $this->logger));
+            $this->setCCInfoStage(new WoowUpCCInfoStage($this->woowupClient, $this->logger, $this->errorHandler));
         }
 
         if (!$this->uploadStage) {

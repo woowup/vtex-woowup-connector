@@ -8,12 +8,13 @@ class WoowUpCCInfoStage implements StageInterface
 {
     protected $woowupClient;
     protected $logger;
+    protected $errorHandler;
 
-
-    public function __construct($woowupClient, $logger)
+    public function __construct($woowupClient, $logger, $errorHandler)
     {
         $this->woowupClient     = $woowupClient;
         $this->logger           = $logger;
+        $this->errorHandler     = $errorHandler;
     }
 
     public function __invoke($payload)
@@ -42,6 +43,8 @@ class WoowUpCCInfoStage implements StageInterface
             try {
                 $response = json_decode($this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']));
             } catch (\Exception $e) {
+                $this->logger->info("Bank info not found");
+                $this->errorHandler->captureException($e);
                 continue;
             }
 
