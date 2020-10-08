@@ -6,6 +6,11 @@ use League\Pipeline\StageInterface;
 
 class WoowUpCCInfoStage implements StageInterface
 {
+    const HTTP_NOT_FOUND = 404;
+    const HTTP_SERVICE_UNAVAILABLE = 503;
+
+    protected static $httpCodes = [self::HTTP_NOT_FOUND, self::HTTP_SERVICE_UNAVAILABLE];
+
     protected $woowupClient;
     protected $logger;
     protected $errorHandler;
@@ -43,8 +48,13 @@ class WoowUpCCInfoStage implements StageInterface
             try {
                 $response = json_decode($this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']));
             } catch (\Exception $e) {
-                $this->logger->info("Bank info not found");
-                $this->errorHandler->captureException($e);
+                if ($e->hasResponse() && (in_array($e->getResponse()->getStatusCode(), self::$httpCodes))) {
+                    $this->logger->info("Bank info not found");
+                    $this->logger->info("Error: Code ". $e->getResponse()->getStatusCode(). ", Message: ".$e->getMessage());
+                } else {
+                    $this->errorHandler->captureException($e);
+                    $this->logger->info(" Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
+                }
                 continue;
             }
 
