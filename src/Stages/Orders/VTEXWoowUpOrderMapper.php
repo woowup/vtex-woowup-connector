@@ -66,6 +66,10 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $order['custom_attributes']['tienda_retiro'] = $vtexOrder->shippingData->logisticsInfo[0]->deliveryIds[0]->courierName;
         }
 
+        if ($this->hasCoupon($vtexOrder)) {
+            $order['custom_attributes']['cupon'] = $vtexOrder->marketingData->coupon;
+        }
+
         return $order;
     }
 
@@ -365,5 +369,15 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $this->logger->error("Could not obtain refId for product with productId: " . $productId);
             return $productId;
         }
+    }
+
+    /**
+     * Checks if order has coupon code
+     * @param  object $vtexOrder VTEX order
+     * @return bool   returns True if order has coupon code
+     */
+    protected function hasCoupon($vtexOrder)
+    {
+        return (isset($vtexOrder->marketingData) && isset($vtexOrder->marketingData->coupon) && ($vtexOrder->marketingData->coupon));
     }
 }
