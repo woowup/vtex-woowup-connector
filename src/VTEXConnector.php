@@ -157,7 +157,7 @@ class VTEXConnector
         }
 
         if ($toDate === null) {
-            $toDate = date('Y-m-d');
+            $toDate = date('Y-m-d', strtotime('+1 day'));
         }
         $toDate      = date('c', strtotime($toDate));
         $fromDate    = date('c', strtotime($fromDate));
