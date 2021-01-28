@@ -277,23 +277,10 @@ class VTEXConnector
         $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
     }
 
-    public function getCustomers($updatedAtMin = null, $dataEntity = "CL")
-    {
-        if ($updatedAtMin === null) {
-            $updatedAtMin = date('Y-m-d', strtotime('-3 days'));
-        }
-
-        $this->_logger->info("Getting customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
-
-        $params = [
-            '_fields' => 'id',
-            '_where'  => 'updatedIn>' . $updatedAtMin,
-        ];
-
+    private function getIds($params, $dataEntity){
         $offset = 0;
         $limit  = 100;
         $page   = 0;
-
         do {
             $page++;
             $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
@@ -316,6 +303,27 @@ class VTEXConnector
             $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
             $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
+    }
+
+    public function getCustomers($updatedAtMin = null, $dataEntity = "CL")
+    {
+        if ($updatedAtMin === null) {
+            $updatedAtMin = date('Y-m-d', strtotime('-3 days'));
+        }
+
+        $this->_logger->info("Getting updated customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
+        $paramsUpdateIn = [
+            '_fields' => 'id',
+            '_where' => 'updatedIn>' . $updatedAtMin,
+        ];
+        yield $this->getIds($paramsUpdateIn, $dataEntity);
+
+        $this->_logger->info("Getting created customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
+        $paramsCreatedIn = [
+            '_fields' => 'id',
+            '_where' => '(updatedIn is null) AND (createdIn>' . $updatedAtMin . ')'
+        ];
+        yield $this->getIds($paramsCreatedIn, $dataEntity);
     }
 
     public function getAddress($userId)
