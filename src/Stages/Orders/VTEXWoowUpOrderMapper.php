@@ -319,10 +319,10 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $seller = null;
 
-        if ($vtexOrder->callCenterOperatorData && isset($vtexOrder->callCenterOperatorData->email)) {
+        if ($vtexOrder->callCenterOperatorData && isset($vtexOrder->callCenterOperatorData->email) && isset($vtexOrder->callCenterOperatorData->userName)) {
             $seller = [
-                'email'    => $vtexOrder->callCenterOperatorData->email,
-                'name'      => isset($vtexOrder->callCenterOperatorData->userName),
+                'email' => $vtexOrder->callCenterOperatorData->email,
+                'name' => $vtexOrder->callCenterOperatorData->userName,
             ];
         }
 
