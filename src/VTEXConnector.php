@@ -637,7 +637,9 @@ class VTEXConnector
 
                 return $response;
             } catch (\Exception $e) {
-                if (method_exists($e, 'getResponse')) {
+                if (method_exists($e, 'getResponse') &&
+                    method_exists($e->getResponse(), 'getStatusCode') &&
+                    method_exists($e->getResponse(), 'getReasonPhrase')) {
                     $response = $e->getResponse();
                     $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
                     if (in_array($response->getStatusCode(), [400, 403, 404])) {
