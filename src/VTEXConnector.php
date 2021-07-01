@@ -345,7 +345,7 @@ class VTEXConnector
         if (is_array($address) && !empty($address)) {
             return array_pop($address);
         } else {
-            throw new \Exception("No address found", 1);
+            throw new \VTEXException("No address found");
         }
     }
 
@@ -475,14 +475,13 @@ class VTEXConnector
     public function searchItemPrices($vtexItemId)
     {
         $this->_logger->info("Searching price for item Id " . $vtexItemId . "... ");
-        $response = $this->_get('/api/pricing/prices/' . $vtexItemId);
-
-        if ($response->getStatusCode() !== 200) {
-            $this->_logger->info("Not found :(");
-            return 0;
-        } else {
+        try {
+            $response = $this->_get('/api/pricing/prices/' . $vtexItemId);
             $this->_logger->info("Sucess!");
             return json_decode($response->getBody());
+        } catch (\Exception $e) {
+            $this->_logger->info("Not found :(  Message: {$e->getMessage()}");
+            return 0;
         }
     }
 
@@ -635,15 +634,21 @@ class VTEXConnector
                     'query'   => $queryParams,
                 ]);
 
-                return $response;
+                if (in_array($response->getStatusCode(), [200, 206])) {
+                    return $response;
+                }
             } catch (\Exception $e) {
                 if (method_exists($e, 'getResponse') &&
                     method_exists($e->getResponse(), 'getStatusCode') &&
-                    method_exists($e->getResponse(), 'getReasonPhrase')) {
+                    method_exists($e->getResponse(), 'getBody')) {
                     $response = $e->getResponse();
-                    $this->_logger->error("Error [" . $response->getStatusCode() . "] " . $response->getReasonPhrase());
+                    $code = $response->getStatusCode();
+                    $body = (string)$e->getResponse()->getBody();
+                    $body = json_decode($body);
+                    $message = $body->Message??$code;
+                    $this->_logger->error("Error [" . $code . "] " . $message);
                     if (in_array($response->getStatusCode(), [400, 403, 404])) {
-                        return $response;
+                        throw new \VTEXRequestException($message, $code, $endpoint);
                     } elseif ($response->getStatusCode() == 429) {
                         sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     }
@@ -656,7 +661,7 @@ class VTEXConnector
         }
 
         $this->_logger->info("Max request attempts reached");
-        return $response;
+        throw new \VTEXException($endpoint);
     }
 
     /**

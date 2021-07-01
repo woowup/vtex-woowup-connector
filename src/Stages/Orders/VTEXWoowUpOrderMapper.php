@@ -366,7 +366,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $product = $this->vtexConnector->getProductByProductId($productId);
             return $product->RefId;
         } catch (\Exception $e) {
-            $this->logger->error("Could not obtain refId for product with productId: " . $productId);
+            $this->logger->error("Could not obtain refId for product with productId: $productId, Message: {$e->getMessage()}");
             return $productId;
         }
     }
