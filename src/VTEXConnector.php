@@ -3,6 +3,8 @@
 namespace WoowUpConnectors;
 
 use League\Pipeline\Pipeline;
+use WoowUpConnectors\Exceptions\VTEXException;
+use WoowUpConnectors\Exceptions\VTEXRequestException;
 use Psr;
 
 class VTEXConnector
@@ -345,7 +347,7 @@ class VTEXConnector
         if (is_array($address) && !empty($address)) {
             return array_pop($address);
         } else {
-            throw new \VTEXException("No address found");
+            throw new VTEXException("No address found");
         }
     }
 
@@ -648,7 +650,7 @@ class VTEXConnector
                     $message = $body->Message??$code;
                     $this->_logger->error("Error [" . $code . "] " . $message);
                     if (in_array($response->getStatusCode(), [400, 403, 404])) {
-                        throw new \VTEXRequestException($message, $code, $endpoint);
+                        throw new VTEXRequestException($message, $code, $endpoint);
                     } elseif ($response->getStatusCode() == 429) {
                         sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     }
@@ -661,7 +663,7 @@ class VTEXConnector
         }
 
         $this->_logger->info("Max request attempts reached");
-        throw new \VTEXException($endpoint);
+        throw new VTEXException($endpoint);
     }
 
     /**
