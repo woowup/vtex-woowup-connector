@@ -1,5 +1,5 @@
 <?php
-
+namespace WoowUpConnectors\Exceptions;
 
 class VTEXException extends \Exception
 {
