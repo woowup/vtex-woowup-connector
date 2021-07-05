@@ -61,7 +61,7 @@ class VTEXConnector
     const MAX_REQUEST_ATTEMPTS = 3;
 
     const DEFAULT_SLEEP_SEC = 2;
-    const TOO_MANY_REQUESTS_SLEEP_SEC = 20;
+    const TOO_MANY_REQUESTS_SLEEP_SEC = 30;
 
     private $_host;
     private $_appName;
@@ -649,10 +649,13 @@ class VTEXConnector
                     $body = json_decode($body);
                     $message = $body->Message??$code;
                     $this->_logger->error("Error [" . $code . "] " . $message);
-                    if (in_array($response->getStatusCode(), [400, 403, 404])) {
-                        throw new VTEXRequestException($message, $code, $endpoint);
-                    } elseif ($response->getStatusCode() == 429) {
+                    if ($response->getStatusCode() == 429) {
+                        $this->_logger->info("Too many request");
                         sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
+                    } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
+                        throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                    } else {
+                        throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
                     }
                 } else {
                     $this->_logger->error("Error at request attempt " . $e->getMessage());
@@ -661,7 +664,6 @@ class VTEXConnector
             $attempts++;
             sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
-
         $this->_logger->info("Max request attempts reached");
         throw new VTEXException($endpoint);
     }
