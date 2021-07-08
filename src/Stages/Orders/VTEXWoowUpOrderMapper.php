@@ -18,7 +18,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
 	public function __invoke($payload)
 	{
-		if ($payload !== null) {
+		if (!is_null($payload)) {
 			return $this->buildOrder($payload);
 		}
 
