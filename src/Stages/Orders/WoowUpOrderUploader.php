@@ -28,7 +28,7 @@ class WoowUpOrderUploader implements StageInterface
 	public function __invoke($payload)
 	{
 		if (is_null($payload)) {
-			return false;
+			return null;
 		}
     
 		$order = $payload;
