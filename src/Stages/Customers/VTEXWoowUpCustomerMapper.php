@@ -68,6 +68,12 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 }
             }
 
+            if (isset($vtexCustomer->isNewsletterOptIn)) {
+                $customer['custom_attributes'] = [
+                    'opt-in-vtex'  =>  $vtexCustomer->isNewsletterOptIn,
+                ];
+            }
+
             try {
                 $vtexAddress = $this->vtexConnector->getAddress($vtexCustomer->id);
                 if (isset($vtexAddress)) {
