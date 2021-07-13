@@ -80,6 +80,8 @@ class VTEXWoowUpOrderMapper implements StageInterface
      */
     protected function buildCustomerFromOrder($vtexOrder)
     {
+        const INVALID_EMAILS = ['ct.vtex.com.br', 'mercadolibre.com'];
+
         $customer = [
             'email'         => $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email),
             'first_name'    => ucwords(mb_strtolower($vtexOrder->clientProfileData->firstName)),
@@ -88,6 +90,16 @@ class VTEXWoowUpOrderMapper implements StageInterface
             'document'      => $vtexOrder->clientProfileData->document,
             'telephone'     => $vtexOrder->clientProfileData->phone,
         ];
+
+        if (isset($customer['email'])) {
+            foreach (self::INVALID_EMAILS as $email) {
+                if (stripos($customer['email'], $email) !== false) {
+                    $customer['email'] = $customer['document'].'@noemail.com';
+                    //$customer['mailing_enabled'] = 'disabled';
+                    //$customer['custom_attributes']['opt-in-vtex'] = false;
+                }
+            }
+        }
 
         // Tomo datos de ubicación desde shippingData
         if (isset($vtexOrder->shippingData) && isset($vtexOrder->shippingData->address) && !empty($vtexOrder->shippingData->address)) {
@@ -99,7 +111,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
                 'country'  => $address->country,
                 'street'   => ucwords(mb_strtolower(trim(trim($address->street) . " " . trim($address->number)))),
             ];
-        }
+        }       
 
         return $customer;
     }
