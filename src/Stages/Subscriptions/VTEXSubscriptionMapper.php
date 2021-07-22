@@ -27,10 +27,10 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
         $vtexCustomer = $this->vtexConnector->getCustomerFromId($vtexSubscription->customerId);
         if ($vtexCustomer) {
             if (isset($vtexCustomer->email) && !empty($vtexCustomer->email)) {
-                $customer['email'] = $vtexCustomer->customerInfo->email;
+                $customer['email'] = $vtexCustomer->email;
             }
             if (isset($vtexCustomer->document) && !empty($vtexCustomer->document)) {
-                $customer['document'] = $vtexCustomer->customerInfo->document;
+                $customer['document'] = $vtexCustomer->document;
             }
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
                 $customer['document_type'] = $vtexCustomer->documentType;
@@ -56,6 +56,7 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
         $frequency = $vtexSubscription->plan->frequency;
         $customer['custom_attributes']['frecuencia_compra_periodicidad'] = $frequency->periodicity;
         $customer['custom_attributes']['frecuencia_compra_intervalo'] = (int)$frequency->interval;
+        $customer['custom_attributes']['fecha_ultima_modificacion'] = date('c', strtotime($vtexSubscription->lastUpdate));
         $customer = $this->cleanArray($customer);
         if (isset($customer['email']) || isset($customer['document'])) {
             return $customer;
