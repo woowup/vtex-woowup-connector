@@ -16,20 +16,32 @@ class VTEXSubscriptionDownloader implements StageInterface
 
     public function __invoke($payload)
     {
-        $page = 0;
-        do {
-            $page++;
-            $this->logger->info("Subscriptions page: " . $page);
-            $params = [
-                'size' => 100,
-                'page' => $page
-            ];
-            $response = $this->_get('/rns/pub/subscriptions', $params);
-            $this->logger->info("Success!");
+        if (is_null($payload)) {
+            return null;
+        }
+        if (isset($payload->customerId) && !empty($payload->customerId)) {
+            $customerInfo = $this->searchCustomerById($payload->customerId);
+            if ($customerInfo) {
+                $payload->customerInfo = $customerInfo;
+            }
+            return $payload;
+        }
+        return null;
+    }
 
-            yield json_decode($response->getBody());
 
-            $totalCustomers = $response->getHeader('X-Total-Count')[0];
-        } while (((100 * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
+    protected function searchCustomerById ($id) {
+        $params = [
+            '_fields' => '_all',
+            'userId' => $id
+        ];
+        try {
+            $response = $this->vtexConnector->_get('/api/dataentities/CL/search', $params);
+        }catch (\Exception $error){
+            $this->logger->info("Error to getting client info!");
+            return null;
+        }
+        $this->logger->info("Success to getting client info!");
+        return json_decode($response->getBody())[0];
     }
 }

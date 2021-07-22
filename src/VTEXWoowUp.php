@@ -2,6 +2,8 @@
 
 namespace WoowUpConnectors;
 
+use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionDownloader;
+use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionMapper;
 use WoowUpConnectors\VTEXConnector;
 use WoowUpConnectors\WoowUpHandler;
 use WoowUpConnectors\Stages\DebugUploadStage;
@@ -175,6 +177,38 @@ class VTEXWoowUp
 
         $this->resetStages();
 
+        return true;
+    }
+
+    public function importSubscriptions($fromDate = null, $historical = false, $debug = false){
+        $this->logger->info("Importing subscriptions from $fromDate");
+        if (!$this->downloadStage) {
+            $this->setDownloadStage(new VTEXSubscriptionDownloader($this->vtexConnector, $this->logger));
+        }
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXSubscriptionMapper());
+        }
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new DebugUploadStage() :
+                    new WoowUpCustomerUploader($this->woowupClient, $this->logger)
+            );
+        }
+        $this->preparePipeline();
+        foreach ($this->vtexConnector->getSubscription($fromDate) as $subscription) {
+            $subscriptionId = $subscription->id ?? 'emptyId';
+            $this->logger->info("Processing subscription: " . $subscriptionId);
+            $this->run($subscription);
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created customers: " . $woowupStats['created']);
+        $this->logger->info("Updated customers: " . $woowupStats['updated']);
+        $this->logger->info("Failed customers: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+        $this->resetStages();
         return true;
     }
 
