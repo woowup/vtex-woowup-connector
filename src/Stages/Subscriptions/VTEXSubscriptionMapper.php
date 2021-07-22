@@ -7,6 +7,12 @@ namespace WoowUpConnectors\Stages\Subscriptions;
 class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
 {
 
+    private $vtexConnector;
+    public function __construct($vtexConnector)
+    {
+        $this->vtexConnector = $vtexConnector;
+        return $this;
+    }
     public function __invoke($payload)
     {
         if (is_null($payload)) {
@@ -17,25 +23,23 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
 
     protected function buildCustomer($vtexSubscription)
     {
-        $vtexCustomer = $vtexSubscription->customerInfo ?? null;
-        $email    = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->customerInfo->email : null;
-        $document = isset($vtexCustomer->document) && !empty($vtexCustomer->document) ? $vtexCustomer->customerInfo->document : null;
-        if (is_null($email)) {
-            $email = $vtexSubscription->customerEmail;
-        }
-        $customer = [
-            'email'         => $email,
-            'document'      => $document,
-            'first_name'    => ucwords(mb_strtolower($vtexCustomer->firstName)),
-            'last_name'     => ucwords(mb_strtolower($vtexCustomer->lastName)),
-        ];
-
-        if (isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone)) {
-            $customer['phone'] = $vtexCustomer->homePhone;
-        }
-
-        if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
-            $customer['document_type'] = $vtexCustomer->documentType;
+        $customer['email'] = $vtexSubscription->customerEmail;
+        $vtexCustomer = $this->vtexConnector->getCustomerFromId($vtexSubscription->customerId);
+        if ($vtexCustomer) {
+            if (isset($vtexCustomer->email) && !empty($vtexCustomer->email)) {
+                $customer['email'] = $vtexCustomer->customerInfo->email;
+            }
+            if (isset($vtexCustomer->document) && !empty($vtexCustomer->document)) {
+                $customer['document'] = $vtexCustomer->customerInfo->document;
+            }
+            if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
+                $customer['document_type'] = $vtexCustomer->documentType;
+            }
+            if (isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone)) {
+                $customer['phone'] = $vtexCustomer->homePhone;
+            }
+            $customer['first_name'] = ucwords(mb_strtolower($vtexCustomer->firstName));
+            $customer['last_name'] = ucwords(mb_strtolower($vtexCustomer->lastName));
         }
         $customer['custom_attributes']['status_suscripcion'] = $this->getStatus($vtexSubscription->status);
         $customer['custom_attributes']['proxima_compra'] = date('c', strtotime($vtexSubscription->nextPurchaseDate));
@@ -45,7 +49,7 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
             isset($vtexSubscription->items[0]->skuId)) {
             $customer['custom_attributes']['sku'] = (int)$vtexSubscription->items[0]->skuId;
         }
-        $customer['custom_attributes']['compra_omitida'] = $vtexSubscription->isSkipped?'is Skipped':'is not skipped';
+        $customer['custom_attributes']['compra_omitida'] = $vtexSubscription->isSkipped ? 'is Skipped' : 'is not skipped';
         $validity = $vtexSubscription->plan->validity;
         $customer['custom_attributes']['fecha_validez_inicial'] = date('c', strtotime($validity->begin));
         $customer['custom_attributes']['fecha_validez_final'] = date('c', strtotime($validity->end));
@@ -53,7 +57,7 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
         $customer['custom_attributes']['frecuencia_compra_periodicidad'] = $frequency->periodicity;
         $customer['custom_attributes']['frecuencia_compra_intervalo'] = (int)$frequency->interval;
         $customer = $this->cleanArray($customer);
-        if (isset($email) || isset($document)) {
+        if (isset($customer['email']) || isset($customer['document'])) {
             return $customer;
         }
         return null;
