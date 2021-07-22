@@ -307,19 +307,35 @@ class VTEXConnector
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
+    public function getCustomerFromId ($id) {
+        $params = [
+            '_fields' => '_all',
+            'userId' => $id
+        ];
+        try {
+            $response = $this->_get('/api/dataentities/CL/search', $params);
+        }catch (\Exception $error){
+            $this->_logger->info("Error to getting client info!");
+            return null;
+        }
+        $this->_logger->info("Success to getting client info!");
+        return json_decode($response->getBody())[0];
+    }
+
     public function getSubscription($fromDate){
         $page = 0;
         $params = [
             'size' => 100,
         ];
         if ($fromDate) {
+            $this->_logger->info("Getting subscriptions from $fromDate");
             $params['nextPurchaseDate'] = $fromDate;
         }
         do {
             $page++;
             $this->_logger->info("Subscriptions page: " . $page);
             $params['page'] = $page;
-            $response = $this->_get('/rns/pub/subscriptions', $params);
+            $response = $this->_get('/api/rns/pub/subscriptions', $params);
             $this->_logger->info("Success!");
             foreach (json_decode($response->getBody()) as $subscription) {
                 yield $subscription;

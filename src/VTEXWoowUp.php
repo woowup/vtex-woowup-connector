@@ -180,10 +180,10 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importSubscriptions($fromDate = null, $historical = false, $debug = false){
-        $this->logger->info("Importing subscriptions from $fromDate");
+    public function importSubscriptions($fromDate = null, $debug = false){
+        $this->logger->info("Importing subscriptions");
         if (!$this->downloadStage) {
-            $this->setDownloadStage(new VTEXSubscriptionDownloader($this->vtexConnector, $this->logger));
+            $this->setDownloadStage(new VTEXSubscriptionDownloader($this->vtexConnector));
         }
         if (!$this->mapStage) {
             $this->setMapStage(new VTEXSubscriptionMapper());
