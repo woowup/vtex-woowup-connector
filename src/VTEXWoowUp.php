@@ -183,10 +183,10 @@ class VTEXWoowUp
     public function importSubscriptions($fromDate = null, $debug = false){
         $this->logger->info("Importing subscriptions");
         if (!$this->downloadStage) {
-            $this->setDownloadStage(new VTEXSubscriptionDownloader($this->vtexConnector));
+            $this->setDownloadStage(new VTEXSubscriptionDownloader());
         }
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXSubscriptionMapper());
+            $this->setMapStage(new VTEXSubscriptionMapper($this->vtexConnector));
         }
         if (!$this->uploadStage) {
             $this->setUploadStage(
