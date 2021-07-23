@@ -319,7 +319,12 @@ class VTEXConnector
             return null;
         }
         $this->_logger->info("Success to getting client info!");
-        return json_decode($response->getBody())[0];
+        $customer = json_decode($response->getBody());
+        if (empty($customer)) {
+            $this->_logger->info("Client with empty info!");
+            return null;
+        }
+        return $customer[0];
     }
 
     public function getSubscription($fromDate){
