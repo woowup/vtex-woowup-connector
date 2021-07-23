@@ -44,8 +44,8 @@ class VTEXSubscriptionMapper implements \League\Pipeline\StageInterface
         $customer['custom_attributes']['status_suscripcion'] = $this->getStatus($vtexSubscription->status);
         $customer['custom_attributes']['proxima_compra'] = date('c', strtotime($vtexSubscription->nextPurchaseDate));
         $customer['custom_attributes']['ultima_compra'] = date('c', strtotime($vtexSubscription->lastPurchaseDate));
-        $skus = [];
         if (isset($vtexSubscription->items) && !empty($vtexSubscription->items)) {
+            $skus = [];
             foreach ($vtexSubscription->items as $item) {
                 $skus[] = $item->skuId;
             }
