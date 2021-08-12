@@ -86,22 +86,28 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected function buildCustomerFromOrder($vtexOrder)
     {
         $customer = [
-            'email'         => $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email),
-            'first_name'    => ucwords(mb_strtolower($vtexOrder->clientProfileData->firstName)),
-            'last_name'     => ucwords(mb_strtolower($vtexOrder->clientProfileData->lastName)),
-            'document_type' => $vtexOrder->clientProfileData->documentType,
-            'document'      => $vtexOrder->clientProfileData->document,
-            'telephone'     => $vtexOrder->clientProfileData->phone,
+            'first_name' => ucwords(mb_strtolower($vtexOrder->clientProfileData->firstName)),
+            'last_name' => ucwords(mb_strtolower($vtexOrder->clientProfileData->lastName)),
         ];
-
-        if (isset($customer['email'])) {
-            foreach (self::INVALID_EMAILS as $email) {
-                if (stripos($customer['email'], $email) !== false) {
+        if (isset($vtexOrder->clientProfileData->document) && !empty($vtexOrder->clientProfileData->document)) {
+            $customer['document'] = $vtexOrder->clientProfileData->document;
+        }
+        if (isset($vtexOrder->clientProfileData->documentType) && !empty($vtexOrder->clientProfileData->documentType)) {
+            $customer['document_type'] = $vtexOrder->clientProfileData->documentType;
+        }
+        if (isset($vtexOrder->clientProfileData->phone) && !empty($vtexOrder->clientProfileData->phone)) {
+            $customer['telephone'] = $vtexOrder->clientProfileData->phone;
+        }
+        $email = $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email);
+        if (!empty($email)) {
+            $customer['email'] = $email;
+            foreach (self::INVALID_EMAILS as $invalidEmail) {
+                if (stripos($customer['email'], $invalidEmail) !== false) {
                     if (isset($customer['document'])) {
-                        $customer['email'] = $customer['document'].'@noemail.com';
+                        $customer['email'] = $customer['document'] . '@noemail.com';
                     }
-                    $customer['mailing_enabled']        = self::COMMUNICATION_DISABLED;
-                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;            
+                    $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
                 }
             }
         }
