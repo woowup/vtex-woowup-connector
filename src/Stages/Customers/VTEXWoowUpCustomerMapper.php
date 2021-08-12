@@ -57,15 +57,18 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             	$customer['document_type'] = $vtexCustomer->documentType;
             }
 
-            if (isset($vtexCustomer->isNewsletterOptIn)) {
-                if (!$vtexCustomer->isNewsletterOptIn) {
-                    $customer['mailing_enabled']        = self::COMMUNICATION_DISABLED;
-                    $customer['sms_enabled']            = self::COMMUNICATION_DISABLED;
-                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                    $customer['sms_enabled_reason']     = self::DISABLED_REASON_OTHER;
-                } else {
-                    $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
-                    $customer['sms_enabled']     = self::COMMUNICATION_ENABLED;
+            if (isset($customer['mailing_enabled_reason']) && ($customer['mailing_enabled_reason'] != 'other'))
+            {
+                if (isset($vtexCustomer->isNewsletterOptIn)) {
+                    if (!$vtexCustomer->isNewsletterOptIn) {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                        $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    } else {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
+                    }
                 }
             }
             
