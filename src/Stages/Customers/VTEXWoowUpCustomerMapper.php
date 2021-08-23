@@ -4,6 +4,7 @@ namespace WoowUpConnectors\Stages\Customers;
 
 use Exception;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\RequestException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
 
@@ -61,7 +62,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
                 $customer['document_type'] = $vtexCustomer->documentType;
             }
-            $endpoint = 'https://api.woowup.com/apiv3/users';
+            $endpoint = 'https://api.woowup.com/apiv3/multiusers/find';
             $queryParams = [];
             if (isset($email) && !empty($email)) {
                 $queryParams['email'] = $email;
@@ -83,20 +84,20 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 if (in_array($response->getStatusCode(), [200, 206])) {
                     $body = $response->getBody();
                 }
-            } catch (Exception $e) {
-                if (method_exists($e, 'getResponse') &&
-                    method_exists($e->getResponse(), 'getStatusCode') &&
-                    method_exists($e->getResponse(), 'getBody')) {
+            } catch (RequestException $e) {
+                if (method_exists($e->getResponse(), 'getBody')) {
                     $response = $e->getResponse();
                     $code = $response->getStatusCode();
                     $body = (string)$response->getBody();
                     $body = json_decode($body);
                     $message = $body->Message ?? $code;
                     $this->logger->error("Error [" . $code . "] " . $message);
-                    if ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
-                        throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
-                    } else {
-                        throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
+                    if (!($body->message == 'User not found')) {
+                        if ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
+                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                        } else {
+                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
+                        }
                     }
                 } else {
                     $this->logger->error("Error at request attempt " . $e->getMessage());
