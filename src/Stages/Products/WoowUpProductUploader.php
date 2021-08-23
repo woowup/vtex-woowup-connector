@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors\Stages\Products;
 
+use GuzzleHttp\Exception\RequestException;
 use League\Pipeline\StageInterface;
 
 class WoowUpProductUploader implements StageInterface
@@ -25,38 +26,53 @@ class WoowUpProductUploader implements StageInterface
         $processedProducts = [];
         foreach ($payload as $product) {
             $processedProducts[] = $product;
-
     		try {
                 $this->woowupClient->products->update($product['sku'], $product);
                 $this->logger->info("[Product] {$product['sku']} Updated Successfully");
                 $this->woowupStats['updated']++;
-            } catch (\Exception $e) {
-                if (method_exists($e, 'getResponse')) {
-                    $response = json_decode($e->getResponse()->getBody(), true);
-                    if ($e->getResponse()->getStatusCode() == 404) {
-                        // no existe el producto
+            } catch (RequestException $e) {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
+                $sku = $product['sku'] ?? 'Product without sku';
+                if ($e->hasResponse()) {
+                    $response = $e->getResponse();
+                    $responseStatusCode = $response->getStatusCode();
+                    if ($responseStatusCode == 404) {
                         try {
                             $this->woowupClient->products->create($product);
-                            $this->logger->info("[Product] {$product['sku']} Created Successfully");
+                            $this->logger->info("[Product] $sku Created Successfully");
                             $this->woowupStats['created']++;
-                            break;
+                            continue;
                         } catch (\Exception $e) {
-                            $errorCode    = $e->getCode();
-                            $errorMessage = $e->getMessage();
-                            $this->woowupStats['failed'][] = $product;
+                            $this->logger->info("[Product] $sku Failed Creation");
                         }
-                    } else {
-                        $errorCode    = $response['code'];
-                        $errorMessage = $response['payload']['errors'][0] ?? json_encode($response);
                     }
-                } else {
-                    $errorCode    = $e->getCode();
-                    $errorMessage = $e->getMessage();
+                    $body = json_decode((string) $response->getBody(),true);
+                    if ($body) {
+                        if (isset($body['code']) && !empty($body['code'])) {
+                            $errorCode = $body['code'];
+                            switch ($errorCode) {
+                                case 'internal_error':
+                                    $errorMessage = $body['message'] ?? '';
+                                    break;
+                                default:
+                                    $errors = $body['payload']['errors'] ?? [];
+                                    $errorMessage = implode(';',$errors);
+                                    break;
+                            }
+                        }
+                    }
                 }
-                $this->logger->info("[Product] {$product['sku']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+                $this->logger->info("[Product] $sku Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+                $this->woowupStats['failed'][] = $product;
+
+            } catch (\Exception $e) {
+                $errorCode    = $e->getCode();
+                $errorMessage = $e->getMessage();
+                $sku = $product['sku'] ?? 'Product without sku';
+                $this->logger->info("[Product] $sku Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
                 $this->woowupStats['failed'][] = $product;
             }
-
         }
 
         return $processedProducts;

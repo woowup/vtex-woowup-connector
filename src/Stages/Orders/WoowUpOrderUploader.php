@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors\Stages\Orders;
 
+use GuzzleHttp\Exception\RequestException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Stages\Customers\WoowUpCustomerUploader;
 
@@ -42,37 +43,49 @@ class WoowUpOrderUploader implements StageInterface
             $this->logger->info("[Purchase] {$order['invoice_number']} Created Successfully");
             $this->woowupStats['created']++;
             return true;
-        } catch (\Exception $e) {
-            if (method_exists($e, 'getResponse')) {
-                $response = json_decode($e->getResponse()->getBody(), true);
-                switch ($response['code']) {
-                    case 'user_not_found':
-                        $this->logger->info("[Purchase] {$order['invoice_number']} Error: customer not found");
-                        $this->woowupStats['failed'][] = $order;
-                        return false;
-                        break;
-                    case 'duplicated_purchase_number':
-                        $this->logger->info("[Purchase] {$order['invoice_number']} Duplicated");
-                        $this->woowupStats['duplicated']++;
-                        if ($this->updateOrder) {
-                            $this->woowupClient->purchases->update($order);
-                            $this->logger->info("[Purchase] {$order['invoice_number']} Updated Successfully");
-                            $this->woowupStats['updated']++;
+        } catch (RequestException $e ) {
+            $errorCode    = $e->getCode();
+            $errorMessage = $e->getMessage();
+            $invoiceNumber = $order['invoice_number'] ?? 'Order without invoice number';
+            if ($e->hasResponse()) {
+                $body  = json_decode( (string ) $e->getResponse()->getBody(), true);
+                if ($body) {
+                    if (isset($body['code']) && !empty($body['code'])) {
+                        $errorCode = $body['code'];
+                        switch ($errorCode) {
+                            case 'user_not_found':
+                                $this->logger->info("[Purchase] {$invoiceNumber} Error: customer not found");
+                                $this->woowupStats['failed'][] = $order;
+                                return false;
+                            case 'duplicated_purchase_number':
+                                $this->logger->info("[Purchase] {$invoiceNumber} Duplicated");
+                                $this->woowupStats['duplicated']++;
+                                if ($this->updateOrder) {
+                                    $this->woowupClient->purchases->update($order);
+                                    $this->logger->info("[Purchase] {$invoiceNumber} Updated Successfully");
+                                    $this->woowupStats['updated']++;
+                                }
+                                return true;
+                            case 'internal_error':
+                                $errorMessage = $body['message'] ?? '';
+                                break;
+                            default:
+                                $errors = $body['payload']['errors'] ?? [];
+                                $errorMessage = implode(';',$errors);
+                                break;
                         }
-                        return true;
-                        break;
-                    default:
-                        $errorCode    = $response['code'];
-                        $errorMessage = $response['payload']['errors'][0] ?? json_encode($response);
-                        break;
+                    }
                 }
-            } else {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
             }
-            $this->logger->info("[Purchase] {$order['invoice_number']} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->logger->info("[Purchase] {$invoiceNumber} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
             $this->woowupStats['failed'][] = $order;
-
+            return false;
+        } catch (\Exception $e) {
+            $errorCode    = $e->getCode();
+            $errorMessage = $e->getMessage();
+            $invoiceNumber = $order['invoice_number'] ?? 'Order without invoice number';
+            $this->logger->info("[Purchase] {$invoiceNumber} Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
+            $this->woowupStats['failed'][] = $order;
             return false;
         }
     }

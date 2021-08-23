@@ -524,7 +524,7 @@ class VTEXConnector
             $this->_logger->info("Sucess!");
             return json_decode($response->getBody());
         } catch (\Exception $e) {
-            $this->_logger->info("Not found :(  Message: {$e->getMessage()}");
+            $this->_logger->info("Not found price for item Id $vtexItemId - Message: {$e->getMessage()}");
             return 0;
         }
     }
