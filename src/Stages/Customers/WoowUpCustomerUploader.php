@@ -79,7 +79,7 @@ class WoowUpCustomerUploader implements StageInterface
                     $errorInformation['message'] = $body['message'] ?? '';
                 } else {
                     $errors = $body['payload']['errors'] ?? [];
-                    $errorInformation['message'] = implode(';',$errors);
+                    $errorInformation['message'] = is_array($errors) ? implode(';',$errors) : $errors;
                 }
             }
         }

@@ -71,7 +71,7 @@ class WoowUpOrderUploader implements StageInterface
                                 break;
                             default:
                                 $errors = $body['payload']['errors'] ?? [];
-                                $errorMessage = implode(';',$errors);
+                                $errorMessage = is_array($errors) ? implode(';',$errors) : $errors;
                                 break;
                         }
                     }
