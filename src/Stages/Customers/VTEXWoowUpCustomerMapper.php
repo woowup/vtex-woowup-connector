@@ -3,8 +3,11 @@
 namespace WoowUpConnectors\Stages\Customers;
 
 use Exception;
+use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ServerException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
 
@@ -18,7 +21,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     protected $vtexConnector;
     protected $logger;
     private $apiKey;
-    private ClientInterface $_httpClient;
+    private $_httpClient;
 
     public function __construct($vtexConnector, $logger,$apiKey)
     {
@@ -62,7 +65,9 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
                 $customer['document_type'] = $vtexCustomer->documentType;
             }
-            $endpoint = 'https://api.woowup.com/apiv3/multiusers/find';
+            $host = env('WOOWUP_HOST');
+            $version = env('WOOWUP_VERSION');
+            $endpoint = $host.'/'.$version.'/multiusers/find';
             $queryParams = [];
             if (isset($email) && !empty($email)) {
                 $queryParams['email'] = $email;
@@ -70,7 +75,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($document) && !empty($document)) {
                 $queryParams['document'] = $document;
             }
-
+            $this->_httpClient = new Client();
             try {
                 $response = $this->_httpClient->request('GET', $endpoint, [
                     'headers' => [
@@ -80,46 +85,16 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                     ],
                     'query' => $queryParams,
                 ]);
-
-                if (in_array($response->getStatusCode(), [200, 206])) {
+                $code = $response->getStatusCode();
+                if (in_array($code, [200, 206])) {
                     $body = $response->getBody();
                 }
-            } catch (RequestException $e) {
-                if (method_exists($e->getResponse(), 'getBody')) {
-                    $response = $e->getResponse();
-                    $code = $response->getStatusCode();
-                    $body = (string)$response->getBody();
-                    $body = json_decode($body);
-                    $message = $body->Message ?? $code;
-                    $this->logger->error("Error [" . $code . "] " . $message);
-                    if (!($body->message == 'User not found')) {
-                        if ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
-                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
-                        } else {
-                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
-                        }
-                    }
-                } else {
-                    $this->logger->error("Error at request attempt " . $e->getMessage());
-                }
+                $this->newComunicationOptIn($vtexCustomer,$body,$code);
+            } catch (ClientException | ServerException $e) {
+                $body = null;
+                if ($e->hasResponse()) $code = $e->getResponse()->getStatusCode();
+                $this->newComunicationOptIn($vtexCustomer,$body,$code);
             }
-            $mailing_enabled_reason = $body->payload->mailing_enabled_reason;
-
-
-            if($mailing_enabled_reason !== 'other') {
-                if (isset($vtexCustomer->isNewsletterOptIn)) {
-                    if (!$vtexCustomer->isNewsletterOptIn) {
-                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                        $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
-                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                        $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                    } else {
-                        $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
-                        $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
-                    }
-                }
-            }
-
 
             if (isset($customer['email'])) {
                 foreach (self::INVALID_EMAILS as $email) {
@@ -163,6 +138,28 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         }
 
         return null;
+    }
+
+    protected function newComunicationOptIn($vtexCustomer,$body,$code){
+        if ($body !== null) {
+            $mailing_enabled_reason = $body->payload->mailing_enabled_reason;
+        }
+        $level=(int) floor($code / 100);
+        if ( (($level !== 5) && ($level !== 4)) | ($code == 404) ) {
+            if (($mailing_enabled_reason == null) && ($mailing_enabled_reason == 'other')) {
+                if (isset($vtexCustomer->isNewsletterOptIn)) {
+                    if (!$vtexCustomer->isNewsletterOptIn) {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                        $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    } else {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
+                    }
+                }
+            }
+        }
     }
 
     protected function buildAddress($vtexAddress)
