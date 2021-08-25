@@ -20,6 +20,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
 
     protected $vtexConnector;
     protected $logger;
+    protected $getNewsletterOptIn;
     private $apiKey;
     private $_httpClient;
 
@@ -27,7 +28,9 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger = $logger;
+        $this->getNewsletterOptIn = true;
         $this->apiKey = $apiKey;
+        $this->_httpClient = new Client();
         return $this;
     }
 
@@ -75,25 +78,45 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($document) && !empty($document)) {
                 $queryParams['document'] = $document;
             }
-            $this->_httpClient = new Client();
+
             try {
-                $response = $this->_httpClient->request('GET', $endpoint, [
-                    'headers' => [
-                        'Content-Type' => 'application/json',
-                        'Accept' => 'application/json',
-                        'Authorization' => 'Basic ' . $this->apiKey,
-                    ],
-                    'query' => $queryParams,
-                ]);
-                $code = $response->getStatusCode();
-                if (in_array($code, [200, 206])) {
-                    $body = $response->getBody();
+                $body = $this->newComunicationOptIn($endpoint,$queryParams);
+                if (($body->payload->mailing_enabled_reason == null) | ($body->payload->mailing_enabled_reason == 'other')) {
+                    if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
+                        if (!$vtexCustomer->isNewsletterOptIn) {
+                            $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                            $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
+                            $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                            $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                        } else {
+                            $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                            $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
+                        }
+                    }
                 }
-                $this->newComunicationOptIn($vtexCustomer,$body,$code);
-            } catch (ClientException | ServerException $e) {
-                $body = null;
+            } catch (ClientException $e) {
+                if ($e->hasResponse()) {
+                    $code = $e->getResponse()->getStatusCode();
+                    $this->logger->error("Client Error [" . $code . "] ");
+                    if ($code == 404) {
+                        if (($e->getResponse()->mailing_enabled_reason == null) | ($e->getResponse()->mailing_enabled_reason == 'other')) {
+                            if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
+                                if (!$vtexCustomer->isNewsletterOptIn) {
+                                    $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                                    $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
+                                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                                    $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                                } else {
+                                    $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                                    $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
+                                }
+                            }
+                        }
+                    }
+                }
+            }catch (ServerException $e){
                 if ($e->hasResponse()) $code = $e->getResponse()->getStatusCode();
-                $this->newComunicationOptIn($vtexCustomer,$body,$code);
+                $this->logger->error("Server Error [" . $code . "] " );
             }
 
             if (isset($customer['email'])) {
@@ -140,26 +163,20 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         return null;
     }
 
-    protected function newComunicationOptIn($vtexCustomer,$body,$code){
-        if ($body !== null) {
-            $mailing_enabled_reason = $body->payload->mailing_enabled_reason;
+    protected function newComunicationOptIn($endpoint,$queryParams){
+        $response = $this->_httpClient->request('GET', $endpoint, [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Authorization' => 'Basic ' . $this->apiKey,
+            ],
+            'query' => $queryParams,
+        ]);
+        $code = $response->getStatusCode();
+        if (in_array($code, [200, 206])) {
+            $body = $response->getBody();
         }
-        $level=(int) floor($code / 100);
-        if ( (($level !== 5) && ($level !== 4)) | ($code == 404) ) {
-            if (($mailing_enabled_reason == null) && ($mailing_enabled_reason == 'other')) {
-                if (isset($vtexCustomer->isNewsletterOptIn)) {
-                    if (!$vtexCustomer->isNewsletterOptIn) {
-                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                        $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
-                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                        $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                    } else {
-                        $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
-                        $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
-                    }
-                }
-            }
-        }
+        return $body;
     }
 
     protected function buildAddress($vtexAddress)
