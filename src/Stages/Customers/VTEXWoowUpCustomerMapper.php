@@ -13,12 +13,13 @@ class VTEXWoowUpCustomerMapper implements StageInterface
 
 	protected $vtexConnector;
     protected $logger;
+    protected $getNewsletterOptIn;
 
 	public function __construct($vtexConnector, $logger)
 	{
 		$this->vtexConnector = $vtexConnector;
         $this->logger        = $logger;
-
+        $this->getNewsletterOptIn = true;
         return $this;
 	}
 
@@ -57,7 +58,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             	$customer['document_type'] = $vtexCustomer->documentType;
             }
 
-            if (isset($vtexCustomer->isNewsletterOptIn)) {
+            if (isset($vtexCustomer->isNewsletterOptIn) && $this->getNewsletterOptIn) {
                 if (!$vtexCustomer->isNewsletterOptIn) {
                     $customer['mailing_enabled']        = self::COMMUNICATION_DISABLED;
                     $customer['sms_enabled']            = self::COMMUNICATION_DISABLED;
