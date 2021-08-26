@@ -68,55 +68,19 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
                 $customer['document_type'] = $vtexCustomer->documentType;
             }
-            $host = env('WOOWUP_HOST');
-            $version = env('WOOWUP_VERSION');
-            $endpoint = $host.'/'.$version.'/multiusers/find';
-            $queryParams = [];
-            if (isset($email) && !empty($email)) {
-                $queryParams['email'] = $email;
-            }
-            if (isset($document) && !empty($document)) {
-                $queryParams['document'] = $document;
-            }
 
-            try {
-                $body = $this->newComunicationOptIn($endpoint,$queryParams);
-                if (($body->payload->mailing_enabled_reason == null) | ($body->payload->mailing_enabled_reason == 'other')) {
-                    if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
-                        if (!$vtexCustomer->isNewsletterOptIn) {
-                            $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                            $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
-                            $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                            $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                        } else {
-                            $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
-                            $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
-                        }
+            if ($this->newComunicationOptIn($customer)) {
+                if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
+                    if (!$vtexCustomer->isNewsletterOptIn) {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                        $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    } else {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
+                        $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
                     }
                 }
-            } catch (ClientException $e) {
-                if ($e->hasResponse()) {
-                    $code = $e->getResponse()->getStatusCode();
-                    $this->logger->error("Client Error [" . $code . "] ");
-                    if ($code == 404) {
-                        if (($e->getResponse()->mailing_enabled_reason == null) | ($e->getResponse()->mailing_enabled_reason == 'other')) {
-                            if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
-                                if (!$vtexCustomer->isNewsletterOptIn) {
-                                    $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                                    $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
-                                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                                    $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                                } else {
-                                    $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
-                                    $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
-                                }
-                            }
-                        }
-                    }
-                }
-            }catch (ServerException $e){
-                if ($e->hasResponse()) $code = $e->getResponse()->getStatusCode();
-                $this->logger->error("Server Error [" . $code . "] " );
             }
 
             if (isset($customer['email'])) {
@@ -163,20 +127,47 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         return null;
     }
 
-    protected function newComunicationOptIn($endpoint,$queryParams){
-        $response = $this->_httpClient->request('GET', $endpoint, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'Authorization' => 'Basic ' . $this->apiKey,
-            ],
-            'query' => $queryParams,
-        ]);
-        $code = $response->getStatusCode();
-        if (in_array($code, [200, 206])) {
-            $body = $response->getBody();
+
+    protected function newComunicationOptIn($customer){
+
+        $endpoint = env('WOOWUP_HOST').'/'.env('WOOWUP_VERSION').'/multiusers/find';
+        $queryParams = [];
+        if (isset($customer['email']) && !empty($customer['email'])) {
+            $queryParams['email'] = $customer['email'];
         }
-        return $body;
+        if (isset($customer['document']) && !empty($customer['document'])) {
+            $queryParams['document'] = $customer['document'];
+        }
+        try {
+            $response = $this->_httpClient->request('GET', $endpoint, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'Authorization' => 'Basic ' . $this->apiKey,
+                ],
+                'query' => $queryParams,
+            ]);
+            $code = $response->getStatusCode();
+            if (in_array($code, [200, 206])) {
+                $body = $response->getBody();
+                if (($body->payload->mailing_enabled_reason == null) | ($body->payload->mailing_enabled_reason == 'other')) {
+                    return true;
+                }
+            }
+        }catch (ClientException $e) {
+            if ($e->hasResponse()) {
+                $code = $e->getResponse()->getStatusCode();
+                $this->logger->error("Client Error [" . $code . "] ");
+                if ($code == 404){
+                    return true;
+                }
+            }
+        }catch (ServerException $e){
+            if ($e->hasResponse()) $code = $e->getResponse()->getStatusCode();
+            $this->logger->error("Server Error [" . $code . "] " );
+        }
+
+        return false;
     }
 
     protected function buildAddress($vtexAddress)
