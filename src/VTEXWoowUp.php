@@ -32,6 +32,7 @@ class VTEXWoowUp
     protected $woowupClient;
     protected $pipeline;
     protected $errorHandler;
+    private $apiKey;
 
     public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler)
     {
@@ -39,6 +40,7 @@ class VTEXWoowUp
         $this->logger        = $logger;
         $this->woowupClient  = $woowupClient;
         $this->errorHandler  = $errorHandler;
+        $this->apiKey        = $vtexConfig['accountApiKey'];
     }
 
     public function addPreMapStage($stage)
@@ -153,8 +155,8 @@ class VTEXWoowUp
 
         if (!$this->uploadStage) {
             $this->setUploadStage(($debug) ?
-                new DebugUploadStage() :
-                new WoowUpOrderUploader($this->woowupClient, $updating, $this->logger)
+                                      new DebugUploadStage() :
+                                      new WoowUpOrderUploader($this->woowupClient, $updating, $this->logger)
             );
         }
 
@@ -222,14 +224,14 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger));
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey ));
         }
 
         if (!$this->uploadStage) {
             $this->setUploadStage(
                 ($debug) ?
-                new DebugUploadStage() :
-                new WoowUpCustomerUploader($this->woowupClient, $this->logger)
+                    new DebugUploadStage() :
+                    new WoowUpCustomerUploader($this->woowupClient, $this->logger)
             );
         }
 
@@ -265,8 +267,8 @@ class VTEXWoowUp
         if (!$this->uploadStage) {
             $this->setUploadStage(
                 ($debug) ?
-                new WoowUpProductDebugger() :
-                new WoowUpProductUploader($this->woowupClient, $this->logger)
+                    new WoowUpProductDebugger() :
+                    new WoowUpProductUploader($this->woowupClient, $this->logger)
             );
         }
 
@@ -274,7 +276,7 @@ class VTEXWoowUp
         foreach ($this->vtexConnector->getProducts() as $vtexBaseProduct) {
             $products = $this->run($vtexBaseProduct);
             foreach ($products as $product) {
-                $updatedSkus[] = $product['sku'];   
+                $updatedSkus[] = $product['sku'];
             }
         }
 
