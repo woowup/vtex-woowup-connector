@@ -67,6 +67,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 $customer['document_type'] = $vtexCustomer->documentType;
             }
 
+
             if ($this->newComunicationOptIn($customer)) {
                 if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
                     if (!$vtexCustomer->isNewsletterOptIn) {
