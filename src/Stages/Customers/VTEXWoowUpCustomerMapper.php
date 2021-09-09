@@ -7,6 +7,7 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
+use GuzzleHttp\Client;
 
 class VTEXWoowUpCustomerMapper implements StageInterface
 {
