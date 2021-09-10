@@ -288,7 +288,7 @@ class VTEXWoowUp
         }
 
         // Actualizo los que no están más disponibles
-        $this->uploadStage->updateUnavailable($updatedSkus);
+        //$this->uploadStage->updateUnavailable($updatedSkus);
 
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");

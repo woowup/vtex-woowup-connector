@@ -7,6 +7,7 @@ use League\Pipeline\StageInterface;
 abstract class VTEXWoowUpProductMapper implements StageInterface
 {
     protected $vtexConnector;
+    protected const PRODUCT_WITHOUT_LIST_PRICE = 0;
 
     public function __construct($vtexConnector)
     {
@@ -65,9 +66,11 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         if (isset($vtexItem->sellers) && isset($vtexItem->sellers[0]) && isset($vtexItem->sellers[0]->commertialOffer) && isset($vtexItem->sellers[0]->commertialOffer->ListPrice)) {
             return $vtexItem->sellers[0]->commertialOffer->ListPrice;
         } else {
-            $vtexItemId = $vtexItem->itemId;
             $prices = $this->vtexConnector->searchItemPrices($vtexItem->itemId);
-            return $prices->listPrice;
+            if (isset($prices->listPrice)) {
+                return $prices->listPrice;
+            }
+            return self::PRODUCT_WITHOUT_LIST_PRICE;
         }
     }
 
