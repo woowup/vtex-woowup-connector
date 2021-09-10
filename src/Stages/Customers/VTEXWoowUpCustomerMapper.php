@@ -148,7 +148,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             ]);
             $code = $response->getStatusCode();
             if (in_array($code, [200, 206])) {
-                $body = $response->getBody();
+                $body = json_decode((string) $response->getBody());
                 if (($body->payload->mailing_enabled_reason == null) | ($body->payload->mailing_enabled_reason == 'other')) {
                     return true;
                 }
