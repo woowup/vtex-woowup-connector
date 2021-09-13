@@ -279,34 +279,6 @@ class VTEXConnector
         $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
     }
 
-    private function getIds($params, $dataEntity){
-        $offset = 0;
-        $limit  = 100;
-        $page   = 0;
-        do {
-            $page++;
-            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
-
-            $requestHeaders = [
-                'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
-            ];
-
-            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders);
-            if ($response->getStatusCode() !== 200) {
-                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
-            }
-
-            $this->_logger->info("Success!");
-
-            foreach (json_decode($response->getBody()) as $vtexCustomer) {
-                yield $vtexCustomer->id;
-            }
-
-            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
-            $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
-        } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
-    }
-
     public function getCustomerFromId ($id) {
         $params = [
             '_fields' => '_all',
@@ -355,19 +327,38 @@ class VTEXConnector
             $updatedAtMin = date('Y-m-d', strtotime('-3 days'));
         }
 
-        $this->_logger->info("Getting updated customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
+        $this->_logger->info("Getting updated and created customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
         $paramsUpdateIn = [
             '_fields' => 'id',
-            '_where' => 'updatedIn>' . $updatedAtMin,
+            '_where' => "(updatedIn>$updatedAtMin) OR ((updatedIn is null) AND (createdIn>$updatedAtMin))",
         ];
-        yield $this->getIds($paramsUpdateIn, $dataEntity);
+        $offset = 0;
+        $limit  = 100;
+        $page   = 0;
+        do {
+            $page++;
+            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
 
-        $this->_logger->info("Getting created customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
-        $paramsCreatedIn = [
-            '_fields' => 'id',
-            '_where' => '(updatedIn is null) AND (createdIn>' . $updatedAtMin . ')'
-        ];
-        yield $this->getIds($paramsCreatedIn, $dataEntity);
+            $requestHeaders = [
+                'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
+            ];
+
+            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $paramsUpdateIn, $requestHeaders);
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $this->_logger->info("Success!");
+
+            foreach (json_decode($response->getBody()) as $vtexCustomer) {
+                yield $vtexCustomer->id;
+            }
+
+            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
+            var_dump($totalCustomers);
+            die();
+            $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
+        } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
     public function getAddress($userId)
