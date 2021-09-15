@@ -110,7 +110,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                     $address = $this->buildAddress($vtexAddress);
                     $customer += $address;
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $this->logger->info("Error getting address: " . $e->getMessage());
             }
 
