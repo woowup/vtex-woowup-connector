@@ -328,7 +328,7 @@ class VTEXConnector
         }
 
         $this->_logger->info("Getting updated and created customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
-        $paramsUpdateIn = [
+        $params = [
             '_fields' => 'id',
             '_where' => "(updatedIn>$updatedAtMin) OR ((updatedIn is null) AND (createdIn>$updatedAtMin))",
         ];
@@ -343,7 +343,7 @@ class VTEXConnector
                 'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
             ];
 
-            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $paramsUpdateIn, $requestHeaders);
+            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders);
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
