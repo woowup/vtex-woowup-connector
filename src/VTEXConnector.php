@@ -632,7 +632,7 @@ class VTEXConnector
         $categoryInfo = [
             'id'       => (string) $vtexCategory->id,
             'name'     => $vtexCategory->name,
-            'url'      => $vtexCategory->url,
+            'url'      => str_replace('http://'.$this->getAppName().'.vtexcommercestable.com.br/', $this->getStoreUrl(), $vtexCategory->url),
             'children' => [],
         ];
 
