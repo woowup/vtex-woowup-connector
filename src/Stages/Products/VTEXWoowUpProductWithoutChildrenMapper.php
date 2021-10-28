@@ -32,6 +32,7 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             'name'              => $baseProduct->name,
             'price'             => $this->getItemListPrice($baseProduct),
             'offer_price'       => $this->getItemPrice($baseProduct),
+            'nombre_complementario' => $this->getItemComplementName($baseProduct),
             'stock'             => $this->getStock($vtexBaseProduct),
             'available'         => true
         ];

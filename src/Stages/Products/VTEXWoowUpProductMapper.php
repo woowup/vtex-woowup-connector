@@ -74,6 +74,15 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         }
     }
 
+    protected function getItemComplementName($vtexItem)
+    {
+        if (isset($vtexItem->complementName)) {
+            return $vtexItem->complementName;
+        } else {
+            return null;
+        }
+    }
+
     public function hasImageUrl($baseProduct)
     {
         return isset($baseProduct->images[0]) && isset($baseProduct->images[0]->imageUrl);
