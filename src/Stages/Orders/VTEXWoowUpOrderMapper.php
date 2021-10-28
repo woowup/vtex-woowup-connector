@@ -75,6 +75,18 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $order['custom_attributes']['cupon'] = $vtexOrder->marketingData->coupon;
         }
 
+        if (isset($vtexOrder->ratesAndBenefitsData) && isset($vtexOrder->ratesAndBenefitsData->rateAndBenefitsIdentifiers)) {
+            $promotions = [];
+            foreach ($vtexOrder->ratesAndBenefitsData->rateAndBenefitsIdentifiers as $identifier) {
+                if (isset($identifier->name)){
+                    array_push($promotions, $identifier->name);
+                }
+            }
+            if (!empty($promotions)) {
+                $order['custom_attributes']['promocion'] = $promotions;
+            }
+        }
+
         return $order;
     }
 
