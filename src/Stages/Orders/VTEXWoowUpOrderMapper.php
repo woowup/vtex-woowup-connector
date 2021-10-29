@@ -79,7 +79,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $promotions = [];
             foreach ($vtexOrder->ratesAndBenefitsData->rateAndBenefitsIdentifiers as $identifier) {
                 if (isset($identifier->name)){
-                    array_push($promotions, $identifier->name);
+                    $promotions [] = $identifier->name;
                 }
             }
             if (!empty($promotions)) {
