@@ -74,13 +74,9 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         }
     }
 
-    protected function getItemComplementName($vtexItem)
+    protected function hasItemComplementName($vtexItem)
     {
-        if (isset($vtexItem->complementName)) {
-            return $vtexItem->complementName;
-        } else {
-            return null;
-        }
+        return (isset($vtexItem->complementName) && !empty($vtexItem->complementName));
     }
 
     public function hasImageUrl($baseProduct)
@@ -109,8 +105,8 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
 
     public function getCustomAttributes($vtexBaseProduct)
     {
+        $customAttributes   = [];
         if ($this->hasSpecifications($vtexBaseProduct)) {
-            $customAttributes   = [];
             $specificationNames = $vtexBaseProduct->allSpecifications;
             foreach ($specificationNames as $specification) {
                 $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', $specification);
@@ -118,8 +114,16 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
                 $specName = str_replace(' ', '_', $specName);
                 $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
             }
-            return $customAttributes;
         }
-        return null;
+        foreach ($vtexBaseProduct->items as $item) {
+            if ($this->hasItemComplementName($item)) {
+                $customAttributes['nombre_complementario'] = $item->complementName;
+            }
+        }
+        if (!empty($customAttributes)) {
+            return $customAttributes;
+        } else {
+            return null;
+        }
     }
 }
