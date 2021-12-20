@@ -167,8 +167,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
             $categoryPath = explode('/', trim($item->additionalInfo->categoriesIds, '/'));
             $categoryId   = array_pop($categoryPath);
-            if (isset($this->_categories[$categoryId])) {
-                $product['category'] = $this->_categories[$categoryId];
+            $categories = $this->vtexConnector->getCategories();
+            if (isset($categories[$categoryId])) {
+                $product['category'] = $categories[$categoryId];
             }
 
             $purchaseDetail[] = $product;
