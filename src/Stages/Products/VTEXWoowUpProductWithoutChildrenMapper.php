@@ -24,17 +24,23 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             'brand'             => $vtexBaseProduct->brand,
             'description'       => $vtexBaseProduct->description,
             'url'               => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->vtexConnector->getStoreUrl(), $vtexBaseProduct->link),
-            'base_name'         => $vtexBaseProduct->productName,
             'release_date'      => $vtexBaseProduct->releaseDate,
-            'sku'               => $baseProduct->referenceId[0]->Value,
             'image_url'         => $this->getImageUrl($baseProduct),
             'thumbnail_url'     => $this->getImageUrl($baseProduct),
-            'name'              => $baseProduct->name,
             'price'             => $this->getItemListPrice($baseProduct),
             'offer_price'       => $this->getItemPrice($baseProduct),
             'stock'             => $this->getStock($vtexBaseProduct),
             'available'         => true
         ];
+
+        if ($this->onlyMapsParentProducts) {
+            $product['name'] = $vtexBaseProduct->productName;
+            $product['sku']  = $vtexBaseProduct->productReference;
+        } else {
+            $product['base_name'] = $vtexBaseProduct->productName;
+            $product['name']      = $baseProduct->name;
+            $product['sku']       = $baseProduct->referenceId[0]->Value;
+        }
 
         $categories = $this->vtexConnector->getCategories();
         if ($this->hasCategory($categories, $vtexBaseProduct)) {
@@ -50,6 +56,10 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 
     protected function hasSku($vtexBaseProduct)
     {
+        if ($this->onlyMapsParentProducts) {
+            return (isset($vtexBaseProduct->productReference) && !empty($vtexBaseProduct->productReference));
+        }
+
         return (isset($vtexBaseProduct->items[0]) && isset($vtexBaseProduct->items[0]->referenceId) && !empty($vtexBaseProduct->items[0]->referenceId) && isset($vtexBaseProduct->items[0]->referenceId[0]->Value));
     }
 
