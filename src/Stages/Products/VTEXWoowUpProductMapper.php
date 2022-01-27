@@ -7,11 +7,13 @@ use League\Pipeline\StageInterface;
 abstract class VTEXWoowUpProductMapper implements StageInterface
 {
     protected $vtexConnector;
+    protected $onlyMapsParentProducts;
     protected const PRODUCT_WITHOUT_LIST_PRICE = 0;
 
     public function __construct($vtexConnector)
     {
         $this->vtexConnector = $vtexConnector;
+        $this->onlyMapsParentProducts = false;
 
         return $this;
     }

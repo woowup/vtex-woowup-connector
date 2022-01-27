@@ -127,8 +127,8 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     }
 
 
-    protected function newComunicationOptIn($customer){
-
+    protected function newComunicationOptIn($customer)
+    {
         $endpoint = env('WOOWUP_HOST').'/'.env('WOOWUP_VERSION').'/multiusers/find';
         $queryParams = [];
         if (isset($customer['email']) && !empty($customer['email'])) {
@@ -137,6 +137,11 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         if (isset($customer['document']) && !empty($customer['document'])) {
             $queryParams['document'] = $customer['document'];
         }
+
+        if (empty($queryParams)) {
+            return false;
+        }
+
         try {
             $response = $this->_httpClient->request('GET', $endpoint, [
                 'headers' => [
@@ -149,7 +154,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             $code = $response->getStatusCode();
             if (in_array($code, [200, 206])) {
                 $body = json_decode((string) $response->getBody());
-                if (($body->payload->mailing_enabled_reason == null) | ($body->payload->mailing_enabled_reason == 'other')) {
+                if (($body->payload->mailing_enabled_reason == null) || ($body->payload->mailing_enabled_reason == 'other')) {
                     return true;
                 }
             }

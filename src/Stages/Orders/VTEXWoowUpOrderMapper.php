@@ -13,12 +13,14 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
 	protected $importing;
 	protected $vtexConnector;
+    protected $onlyMapsParentProducts;
 
 	public function __construct($vtexConnector, $importing = false, $logger)
 	{
 		$this->vtexConnector = $vtexConnector;
 		$this->importing     = $importing;
         $this->logger        = $logger;
+        $this->onlyMapsParentProducts = false;
 	}
 
 	public function __invoke($payload)
@@ -148,7 +150,11 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $purchaseDetail = [];
         foreach ($items as $item) {
-            $sku = ($item->refId) ? $item->refId : $this->getProductRefId($item->productId);
+            if ($this->onlyMapsParentProducts) {
+                $sku = $this->getProductRefId($item->productId);
+            } else {
+                $sku = ($item->refId) ? $item->refId : $this->getProductRefId($item->productId);
+            }
 
             $product = [
                 'sku'           => $sku,
