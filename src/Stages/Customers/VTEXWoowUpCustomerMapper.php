@@ -105,12 +105,12 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             }
 
             if (isset($vtexCustomer->updatedIn)) {
-                $customer['custom_attributes'] ['updated-in'] =
-                    date('Y-m-d', strtotime($vtexCustomer->updatedIn));
+                $customer['custom_attributes']['updated-in'] =
+                    date('c', strtotime($vtexCustomer->updatedIn));
             }
 
             if (isset($vtexCustomer->cretedIn)) {
-                $customer['custom_attributes'] ['created-in'] =
+                $customer['custom_attributes']['created-in'] =
                     date('c', strtotime($vtexCustomer->createdIn));
             }
 
