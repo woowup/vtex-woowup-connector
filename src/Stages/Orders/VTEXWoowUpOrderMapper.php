@@ -162,7 +162,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
                 'quantity'      => (int) $item->quantity,
                 'unit_price'    => (float) $item->price / 100,
                 'url'           => rtrim($this->vtexConnector->getStoreUrl(), '/') . '/' . ltrim($item->detailUrl, '/'),
-                'image_url'     => $item->imageUrl,
+                'image_url'     => $this->vtexConnector->normalizeResizedImageUrl($item->imageUrl),
                 'thumbnail_url' => $this->vtexConnector->normalizeResizedImageUrl($item->imageUrl),
             ];
 
