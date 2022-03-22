@@ -300,6 +300,55 @@ class VTEXWoowUp
         return true;
     }
 
+    public function importHistoricalProducts($debug = false)
+    {
+        $updatedSkus = [];
+        $this->logger->info("Importing historical products");
+
+        if (!$this->mapStage) {
+            var_dump('NO EXISTE EL MAP STAGE');
+            //TODO
+            //$this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new WoowUpProductDebugger() :
+                    new WoowUpProductUploader($this->woowupClient, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+        foreach ($this->vtexConnector->getHistoricalProducts() as $vtexBaseProduct) {
+            $products = $this->run($vtexBaseProduct);
+            foreach ($products as $product) {
+                $updatedSkus[] = $product['sku'];
+            }
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        if (count($woowupStats['failed']) > 0) {
+            $this->logger->info("Retrying failed products");
+            // Los productos ya están procesados hasta el uploadStage
+            $this->uploadStage->retryFailed();
+        }
+
+        // Actualizo los que no están más disponibles
+        //$this->uploadStage->updateUnavailable($updatedSkus);
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created products: " . $woowupStats['created']);
+        $this->logger->info("Updated products: " . $woowupStats['updated']);
+        $this->logger->info("Failed products: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+
     public function getConnector()
     {
         return $this->vtexConnector;

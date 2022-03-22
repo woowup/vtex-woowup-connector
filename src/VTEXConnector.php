@@ -20,6 +20,7 @@ class VTEXConnector
 
     const PRODUCTS_SEARCH_OFFSET = 0;
     const PRODUCTS_SEARCH_LIMIT  = 25;
+    const HISTORICAL_PRODUCTS_SEARCH_LIMIT =  500;
     const PRODUCTS_MAX_VALUE_FROM_PARAMETER = 2500;
 
     const DEFAULT_BRANCH_NAME = 'VTEX';
@@ -279,7 +280,58 @@ class VTEXConnector
         $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
     }
 
-    public function getCustomerFromId ($id) {
+    /**
+     * Gets historical products from VTEX's API and maps them to WoowUp's API format
+     * This method includes VTEX's hidden products and VTEX's inactive products
+     * @return array   $products      products in WoowUp's API format
+     */
+    public function getHistoricalProducts()
+    {
+        $skuIdList = $this->getSkuIdList();
+
+        foreach ($skuIdList as $skuId) {
+            $this->_logger->info("Getting data from product with SkuId: " . strval($skuId));
+
+            $response = $this->_get('/api/catalog_system/pvt/sku/stockkeepingunitbyid/' . strval($skuId));
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $vtexProduct = json_decode($response->getBody());
+
+            yield $vtexProduct;
+        }
+    }
+
+    protected function getSkuIdList()
+    {
+        $skuIdList = [];
+
+        $params = [
+            'page' => self::PRODUCTS_SEARCH_OFFSET,
+            'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
+        ];
+
+        do {
+            $params['page']++;
+
+            $response = $this->_get('/api/catalog_system/pvt/sku/stockkeepingunitids', $params);
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $vtexSkuIds = json_decode($response->getBody());
+
+            $skuIdList = array_merge($skuIdList, $vtexSkuIds);
+
+        //todo
+        } while (($params['page'] < 2) && !empty(json_decode($response->getBody())));
+
+        return $skuIdList;
+    }
+
+    public function getCustomerFromId($id)
+    {
         $params = [
             '_fields' => '_all',
             'userId' => $id
@@ -299,7 +351,8 @@ class VTEXConnector
         return $customer[0];
     }
 
-    public function getSubscription($fromDate){
+    public function getSubscription($fromDate)
+    {
         $page = 0;
         $params = [
             'size' => 100,
