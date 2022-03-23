@@ -34,13 +34,18 @@ class VTEXWoowUpCustomerMapper implements StageInterface
 
     public function __invoke($payload)
     {
-        if (is_null($payload)) {
-            return null;
+        if (!is_null($payload)) {
+            return $this->buildCustomer($payload);
         }
 
-        return $this->buildCustomer($payload);
+        return null;
     }
 
+    /**
+     * Maps a VTEX customer to WoowUp's format
+     * @param  object $vtexCustomer   VTEX customer
+     * @return array                  WoowUp customer
+     */
     protected function buildCustomer($vtexCustomer)
     {
         $email = isset($vtexCustomer->email) && !empty($vtexCustomer->email) ? $vtexCustomer->email : null;

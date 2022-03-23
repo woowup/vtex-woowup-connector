@@ -17,6 +17,7 @@ use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
+use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
 use League\Pipeline\Pipeline;
 
 class VTEXWoowUp
@@ -300,22 +301,24 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importHistoricalProducts($debug = false)
+    public function importHistoricalProducts($stockEqualsZero = false, $debug = false)
     {
         $updatedSkus = [];
         $this->logger->info("Importing historical products");
 
         if (!$this->mapStage) {
-            var_dump('NO EXISTE EL MAP STAGE');
-            //TODO
-            //$this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+            //todo
+            var_dump('INSTANCIO EL MAP STAGE');
+            $this->setMapStage(new VTEXWoowUpHistoricalProductMapper($this->vtexConnector, $stockEqualsZero));
         }
 
         if (!$this->uploadStage) {
             $this->setUploadStage(
                 ($debug) ?
-                    new WoowUpProductDebugger() :
-                    new WoowUpProductUploader($this->woowupClient, $this->logger)
+                    new DebugUploadStage() :
+                    var_dump('NO EXISTE EL UPLOAD STAGE');
+                    //todo
+                    //new WoowUpProductUploader($this->woowupClient, $this->logger)
             );
         }
 
