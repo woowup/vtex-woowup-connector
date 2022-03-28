@@ -4,7 +4,7 @@ namespace WoowUpConnectors\Stages\HistoricalProducts;
 
 use League\Pipeline\StageInterface;
 
-abstract class VTEXWoowUpHistoricalProductMapper implements StageInterface
+class VTEXWoowUpHistoricalProductMapper implements StageInterface
 {
     protected $vtexConnector;
     protected $stockEqualsZero;
@@ -33,8 +33,9 @@ abstract class VTEXWoowUpHistoricalProductMapper implements StageInterface
      * @param  object $vtexProduct   VTEX product
      * @return array                 WoowUp product
      */
-    protected function buildProduct($vtexCustomer)
+    protected function buildProduct($vtexProduct)
     {
-
+        var_dump('ParentSKU: '.$vtexProduct->ProductRefId.' --- SKU: '.$vtexProduct->SkuName);
+        return null;
     }
 }

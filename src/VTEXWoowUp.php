@@ -307,8 +307,6 @@ class VTEXWoowUp
         $this->logger->info("Importing historical products");
 
         if (!$this->mapStage) {
-            //todo
-            var_dump('INSTANCIO EL MAP STAGE');
             $this->setMapStage(new VTEXWoowUpHistoricalProductMapper($this->vtexConnector, $stockEqualsZero));
         }
 
@@ -316,7 +314,7 @@ class VTEXWoowUp
             $this->setUploadStage(
                 ($debug) ?
                     new DebugUploadStage() :
-                    var_dump('NO EXISTE EL UPLOAD STAGE');
+                    var_dump('NO EXISTE EL UPLOAD STAGE')
                     //todo
                     //new WoowUpProductUploader($this->woowupClient, $this->logger)
             );
