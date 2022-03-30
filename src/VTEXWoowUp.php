@@ -322,10 +322,7 @@ class VTEXWoowUp
 
         $this->preparePipeline();
         foreach ($this->vtexConnector->getHistoricalProducts() as $vtexBaseProduct) {
-            $products = $this->run($vtexBaseProduct);
-            foreach ($products as $product) {
-                $updatedSkus[] = $product['sku'];
-            }
+            $this->run($vtexBaseProduct);
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
@@ -334,9 +331,6 @@ class VTEXWoowUp
             // Los productos ya están procesados hasta el uploadStage
             $this->uploadStage->retryFailed();
         }
-
-        // Actualizo los que no están más disponibles
-        //$this->uploadStage->updateUnavailable($updatedSkus);
 
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");
