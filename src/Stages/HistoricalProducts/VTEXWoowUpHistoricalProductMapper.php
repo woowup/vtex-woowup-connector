@@ -46,9 +46,6 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'release_date'      => $vtexProduct->ReleaseDate,
             'image_url'         => $vtexProduct->ImageUrl,
             'thumbnail_url'     => $vtexProduct->ImageUrl,
-            //'price'             => $this->getItemListPrice($baseProduct),
-            //'offer_price'       => $this->getItemPrice($baseProduct),
-            //'stock'             => $this->getStock($vtexBaseProduct),
             'available'         => $vtexProduct->IsActive
         ];
 
@@ -59,6 +56,18 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['base_name'] = $vtexProduct->ProductName;
             $product['name']      = $vtexProduct->NameComplete;
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
+        }
+
+        if ($this->stockEqualsZero) {
+            $product['stock'] = 0;
+        } else {
+            $product['stock'] = 10; //TODO
+        }
+
+        $prices = $this->vtexConnector->searchItemPrices($vtexProduct->Id);
+        if (isset($prices) && !empty($prices)) {
+            $product['price'] = $prices->listPrice;
+            $product['offer_price'] = $prices->basePrice;
         }
 
         if (isset($vtexProduct->ProductCategoryIds) && !empty($vtexProduct->ProductCategoryIds) &&
