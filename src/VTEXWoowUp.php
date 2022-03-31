@@ -18,6 +18,7 @@ use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
 use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
+use WoowUpConnectors\Stages\HistoricalProducts\WoowUpHistoricalProductUploader;
 use League\Pipeline\Pipeline;
 
 class VTEXWoowUp
@@ -314,22 +315,13 @@ class VTEXWoowUp
             $this->setUploadStage(
                 ($debug) ?
                     new DebugUploadStage() :
-                    var_dump('NO EXISTE EL UPLOAD STAGE')
-                    //todo
-                    //new WoowUpProductUploader($this->woowupClient, $this->logger)
+                    new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger)
             );
         }
 
         $this->preparePipeline();
         foreach ($this->vtexConnector->getHistoricalProducts() as $vtexBaseProduct) {
             $this->run($vtexBaseProduct);
-        }
-
-        $woowupStats = $this->uploadStage->getWoowupStats();
-        if (count($woowupStats['failed']) > 0) {
-            $this->logger->info("Retrying failed products");
-            // Los productos ya están procesados hasta el uploadStage
-            $this->uploadStage->retryFailed();
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();

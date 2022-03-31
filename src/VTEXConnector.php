@@ -705,7 +705,7 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _request($method, $endpoint, $queryParams = [], $headers = [])
+    protected function _request($method, $endpoint, $queryParams = [], $headers = [], $requestOption = 'query')
     {
         $attempts = 0;
         while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
@@ -717,7 +717,7 @@ class VTEXConnector
                         'X-VTEX-API-AppKey'   => $this->_appKey,
                         'X-VTEX-API-AppToken' => $this->_appToken,
                     ] + $headers,
-                    'query'   => $queryParams,
+                    $requestOption => $queryParams,
                 ]);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
@@ -761,5 +761,16 @@ class VTEXConnector
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
         return $this->_request('GET', $endpoint, $queryParams, $headers);
+    }
+
+    /**
+     * Sends a POST request to VTEX API
+     * @param  [type] $endpoint    [description]
+     * @param  array  $queryParams [description]
+     * @return [type]              [description]
+     */
+    protected function _post($endpoint, $queryParams = [], $headers = [])
+    {
+        return $this->_request('POST', $endpoint, $queryParams, $headers);
     }
 }
