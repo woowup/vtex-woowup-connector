@@ -330,6 +330,27 @@ class VTEXConnector
         return $skuIdList;
     }
 
+    public function searchStockAndInventoryData($vtexItemId)
+    {
+        $this->_logger->info("Searching inventory data for item Id " . $vtexItemId . "... ");
+        $items = [];
+        $items[] = [
+        'items' => [
+            'id'       => $vtexItemId,
+            'quantity' => 1,
+            'seller'   => "1"
+            ]
+        ];
+        try {
+            $response = $this->_post('/api/fulfillment/pvt/orderForms/simulation', $items[0]);
+            $this->_logger->info("Success!");
+            return json_decode($response->getBody());
+        } catch (\Exception $e) {
+            $this->_logger->info("Not found inventory data for item Id $vtexItemId - Message: {$e->getMessage()}");
+            return 0;
+        }
+    }
+
     public function getCustomerFromId($id)
     {
         $params = [
@@ -563,7 +584,7 @@ class VTEXConnector
         $this->_logger->info("Searching price for item Id " . $vtexItemId . "... ");
         try {
             $response = $this->_get('/api/pricing/prices/' . $vtexItemId);
-            $this->_logger->info("Sucess!");
+            $this->_logger->info("Success!");
             return json_decode($response->getBody());
         } catch (\Exception $e) {
             $this->_logger->info("Not found price for item Id $vtexItemId - Message: {$e->getMessage()}");
@@ -760,7 +781,7 @@ class VTEXConnector
      */
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
-        return $this->_request('GET', $endpoint, $queryParams, $headers);
+        return $this->_request('GET', $endpoint, $queryParams, $headers, 'query');
     }
 
     /**
@@ -771,6 +792,6 @@ class VTEXConnector
      */
     protected function _post($endpoint, $queryParams = [], $headers = [])
     {
-        return $this->_request('POST', $endpoint, $queryParams, $headers);
+        return $this->_request('POST', $endpoint, $queryParams, $headers, 'json');
     }
 }

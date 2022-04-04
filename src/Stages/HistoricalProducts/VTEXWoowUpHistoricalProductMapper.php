@@ -46,7 +46,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'release_date'      => $vtexProduct->ReleaseDate,
             'image_url'         => $vtexProduct->ImageUrl,
             'thumbnail_url'     => $vtexProduct->ImageUrl,
-            'available'         => $vtexProduct->IsActive
+            'available'         => true
         ];
 
         if ($this->onlyMapsParentProducts) {
@@ -61,13 +61,17 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         if ($this->stockEqualsZero) {
             $product['stock'] = 0;
         } else {
-            $product['stock'] = 10; //TODO
+            $product['stock'] = 10; //TODO $this->vtexConnector->searchStockAndInventoryData($vtexProduct->Id);
+        }
+
+        if ($product['stock'] == 0) {
+            $product['available'] = false;
         }
 
         $prices = $this->vtexConnector->searchItemPrices($vtexProduct->Id);
         if (isset($prices) && !empty($prices)) {
-            $product['price'] = $prices->listPrice;
-            $product['offer_price'] = $prices->basePrice;
+            $product['price'] = (float) $prices->listPrice;
+            $product['offer_price'] = (float) $prices->basePrice;
         }
 
         if (isset($vtexProduct->ProductCategoryIds) && !empty($vtexProduct->ProductCategoryIds) &&
