@@ -309,7 +309,9 @@ class VTEXConnector
 
         $params = [
             'page' => self::PRODUCTS_SEARCH_OFFSET,
-            'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
+            'pagesize' => 10
+            //todo
+            //'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
         ];
 
         do {

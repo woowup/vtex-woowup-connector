@@ -83,7 +83,10 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['custom_attributes'] = $customAttributes;
         }
 
-        return $product;
+        $products = [];
+        $products[] = $product;
+        //todo
+        return $products;
     }
 
     protected function hasSku($vtexProduct)
