@@ -315,9 +315,7 @@ class VTEXWoowUp
             $this->setUploadStage(
                 ($debug) ?
                     new DebugUploadStage() :
-                    new WoowUpProductUploader($this->woowupClient, $this->logger)
-                    //todo
-                    //new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger)
+                    new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger)
             );
         }
 

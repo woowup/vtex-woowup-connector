@@ -28,6 +28,16 @@ class WoowUpHistoricalProductUploader implements StageInterface
         }
 
         $product = $payload;
+        $encode = base64_encode($product['sku']);
+        $lastCategory = end($product['category']);
+        $lastCategoryId = $lastCategory['id'];
+
+        $this->logger->info("[Product] Sku: {$product['sku']} , EncodedSku : {$encode}");
+        $this->logger->info("[Product] Price: {$product['price']} , Offer_Price : {$product['offer_price']}");
+        $this->logger->info("[Product] Stock: {$product['stock']}");
+        $this->logger->info("[Product] Release_Date: {$product['release_date']}");
+        $this->logger->info("[Product] LastCategoryId: {$lastCategoryId}");
+
         //[Product] 8N010130000-S Error: Code '0', Message 'cURL error 28: Failed to connect to api-internal.woowup.com port 80: Expiró el tiempo de conexión (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)'
 
         try {

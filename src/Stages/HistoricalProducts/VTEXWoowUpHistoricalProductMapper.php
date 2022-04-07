@@ -44,8 +44,8 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'description'       => $vtexProduct->ProductDescription,
             'url'               => $this->vtexConnector->getStoreUrl() . $vtexProduct->DetailUrl,
             'release_date'      => $vtexProduct->ReleaseDate,
-            'image_url'         => $vtexProduct->ImageUrl,
-            'thumbnail_url'     => $vtexProduct->ImageUrl,
+            'image_url'         => $vtexProduct->Images[0]->ImageUrl,
+            'thumbnail_url'     => $vtexProduct->Images[0]->ImageUrl,
             'available'         => true
         ];
 
@@ -72,6 +72,8 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         if (isset($prices) && !empty($prices)) {
             $product['price'] = (float) $prices->listPrice;
             $product['offer_price'] = (float) $prices->basePrice;
+        } else {
+            return null;
         }
 
         if (isset($vtexProduct->ProductCategoryIds) && !empty($vtexProduct->ProductCategoryIds) &&
@@ -83,10 +85,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['custom_attributes'] = $customAttributes;
         }
 
-        $products = [];
-        $products[] = $product;
-        //todo
-        return $products;
+        return $product;
     }
 
     protected function hasSku($vtexProduct)
