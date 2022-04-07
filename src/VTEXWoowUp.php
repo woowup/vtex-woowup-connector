@@ -17,6 +17,8 @@ use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
+use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
+use WoowUpConnectors\Stages\HistoricalProducts\WoowUpHistoricalProductUploader;
 use League\Pipeline\Pipeline;
 
 class VTEXWoowUp
@@ -287,6 +289,40 @@ class VTEXWoowUp
 
         // Actualizo los que no están más disponibles
         //$this->uploadStage->updateUnavailable($updatedSkus);
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created products: " . $woowupStats['created']);
+        $this->logger->info("Updated products: " . $woowupStats['updated']);
+        $this->logger->info("Failed products: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+
+    public function importHistoricalProducts($stockEqualsZero = false, $debug = false)
+    {
+        $updatedSkus = [];
+        $this->logger->info("Importing historical products");
+
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpHistoricalProductMapper($this->vtexConnector, $stockEqualsZero));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new DebugUploadStage() :
+                    new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+        foreach ($this->vtexConnector->getHistoricalProducts() as $vtexBaseProduct) {
+            $this->run($vtexBaseProduct);
+        }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");
