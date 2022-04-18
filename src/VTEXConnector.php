@@ -309,9 +309,7 @@ class VTEXConnector
 
         $params = [
             'page' => self::PRODUCTS_SEARCH_OFFSET,
-            'pagesize' => 10
-            //todo
-            //'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
+            'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
         ];
 
         do {
@@ -326,8 +324,7 @@ class VTEXConnector
 
             $skuIdList = array_merge($skuIdList, $vtexSkuIds);
 
-        //todo
-        } while (($params['page'] < 2) && !empty(json_decode($response->getBody())));
+        } while (!empty(json_decode($response->getBody())));
 
         return $skuIdList;
     }
