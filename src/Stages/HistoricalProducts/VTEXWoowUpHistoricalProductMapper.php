@@ -44,8 +44,8 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'description'       => $vtexProduct->ProductDescription,
             'url'               => $this->vtexConnector->getStoreUrl() . $vtexProduct->DetailUrl,
             'release_date'      => $vtexProduct->ReleaseDate,
-            'image_url'         => $vtexProduct->Images[0]->ImageUrl,
-            'thumbnail_url'     => $vtexProduct->Images[0]->ImageUrl,
+            'image_url'         => $vtexProduct->Images ? $vtexProduct->Images[0]->ImageUrl : null,
+            'thumbnail_url'     => $vtexProduct->Images ? $vtexProduct->Images[0]->ImageUrl : null,
             'available'         => true
         ];
 
