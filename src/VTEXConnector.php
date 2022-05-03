@@ -329,23 +329,20 @@ class VTEXConnector
         return $skuIdList;
     }
 
-    public function searchStockAndInventoryData($vtexItemId)
+    public function searchItemStock($vtexItemId)
     {
-        $this->_logger->info("Searching inventory data for item Id " . $vtexItemId . "... ");
-        $items = [];
-        $items[] = [
-        'items' => [
-            'id'       => $vtexItemId,
-            'quantity' => 1,
-            'seller'   => "1"
-            ]
-        ];
+        $this->_logger->info("Searching stock for item Id " . $vtexItemId . "... ");
         try {
-            $response = $this->_post('/api/fulfillment/pvt/orderForms/simulation', $items[0]);
+            $response = $this->_get('/api/logistics/pvt/inventory/skus/' . $vtexItemId);
             $this->_logger->info("Success!");
-            return json_decode($response->getBody());
+            $stockBalance = json_decode($response->getBody());
+            $stock = 0;
+            foreach ($stockBalance->balance as $warehouse) {
+                $stock += $warehouse->totalQuantity;
+            }
+            return $stock;
         } catch (\Exception $e) {
-            $this->_logger->info("Not found inventory data for item Id $vtexItemId - Message: {$e->getMessage()}");
+            $this->_logger->info("Not found stock for item Id $vtexItemId - Message: {$e->getMessage()}");
             return 0;
         }
     }
@@ -725,7 +722,7 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _request($method, $endpoint, $queryParams = [], $headers = [], $requestOption = 'query')
+    protected function _request($method, $endpoint, $queryParams = [], $headers = [])
     {
         $attempts = 0;
         while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
@@ -737,7 +734,7 @@ class VTEXConnector
                         'X-VTEX-API-AppKey'   => $this->_appKey,
                         'X-VTEX-API-AppToken' => $this->_appToken,
                     ] + $headers,
-                    $requestOption => $queryParams,
+                    'query' => $queryParams,
                 ]);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
@@ -780,17 +777,6 @@ class VTEXConnector
      */
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
-        return $this->_request('GET', $endpoint, $queryParams, $headers, 'query');
-    }
-
-    /**
-     * Sends a POST request to VTEX API
-     * @param  [type] $endpoint    [description]
-     * @param  array  $queryParams [description]
-     * @return [type]              [description]
-     */
-    protected function _post($endpoint, $queryParams = [], $headers = [])
-    {
-        return $this->_request('POST', $endpoint, $queryParams, $headers, 'json');
+        return $this->_request('GET', $endpoint, $queryParams, $headers);
     }
 }
