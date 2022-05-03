@@ -58,10 +58,9 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
         }
 
-        if ($this->stockEqualsZero) {
-            $product['stock'] = 0;
-        } else {
-            $product['stock'] = 10; //TODO $this->vtexConnector->searchStockAndInventoryData($vtexProduct->Id);
+        $product['stock'] = 0;
+        if (!$this->stockEqualsZero) {
+            $product['stock'] = $this->vtexConnector->searchItemStock($vtexProduct->Id);
         }
 
         if ($product['stock'] == 0) {
