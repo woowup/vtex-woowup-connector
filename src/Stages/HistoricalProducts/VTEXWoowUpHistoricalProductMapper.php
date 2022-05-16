@@ -76,8 +76,14 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['offer_price'] = 0;
         }
 
-        if (isset($vtexProduct->ProductCategoryIds) && !empty($vtexProduct->ProductCategoryIds) &&
-            isset($vtexProduct->ProductCategories) && !empty($vtexProduct->ProductCategories)) {
+        if (
+            $this->vtexConnector->getSyncCategories() &&
+            isset($vtexProduct->ProductCategoryIds)   &&
+            !empty($vtexProduct->ProductCategoryIds)  &&
+            isset($vtexProduct->ProductCategories)    &&
+            !empty($vtexProduct->ProductCategories)
+            )
+        {
             $product['category'] = $this->getCategories($vtexProduct->ProductCategoryIds, $vtexProduct->ProductCategories);
         }
 

@@ -136,6 +136,11 @@ class VTEXConnector
         return $this->_storeUrl;
     }
 
+    public function getSyncCategories()
+    {
+        return $this->_syncCategories;
+    }
+
     public function getCategories()
     {
         return $this->_categories;
