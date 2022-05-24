@@ -117,6 +117,11 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
                 $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
             }
         }
+        $colecciones = [];
+        foreach ($vtexBaseProduct->productClusters as $coleccion){
+            $colecciones[] = $coleccion;
+        }
+        $customAttributes['colecciones'] = $colecciones;
         foreach ($vtexBaseProduct->items as $item) {
             if ($this->hasItemComplementName($item)) {
                 $customAttributes['nombre_complementario'] = $item->complementName;
