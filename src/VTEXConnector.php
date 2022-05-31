@@ -79,6 +79,7 @@ class VTEXConnector
 
     private $_httpClient;
     private $_logger;
+    private $feature;
 
     public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger)
     {
@@ -628,6 +629,16 @@ class VTEXConnector
         }
 
         return $leaves;
+    }
+
+    public function setFeature(bool $feature)
+    {
+        $this->feature = $feature;
+    }
+
+    public function getFeature()
+    {
+        return $this->feature;
     }
 
     /**
