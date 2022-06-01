@@ -147,6 +147,16 @@ class VTEXConnector
         return $this->_categories;
     }
 
+    public function setFeature(bool $feature)
+    {
+        $this->feature = $feature;
+    }
+
+    public function getFeature()
+    {
+        return $this->feature;
+    }
+
     /**
      * Gets orders from VTEX's API and maps them to WoowUp's API format
      * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
@@ -629,16 +639,6 @@ class VTEXConnector
         }
 
         return $leaves;
-    }
-
-    public function setFeature(bool $feature)
-    {
-        $this->feature = $feature;
-    }
-
-    public function getFeature()
-    {
-        return $this->feature;
     }
 
     /**
