@@ -129,7 +129,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
             foreach ($vtexBaseProduct->productClusters as $coleccion){
                 $colecciones[] = $coleccion;
             }
-            $customAttributes['colecciones'] = $colecciones;
+            $customAttributes['Colecciones'] = $colecciones;
         }
 
         if (!empty($customAttributes)) {
