@@ -92,7 +92,7 @@ class WoowUpProductUploader implements StageInterface
         }
         $productData['sku_encoded'] = ($productData['sku'] != 'Product without sku') ? base64_encode($product[$attribute]) : 'Product without sku';
         $productData['last_category_id'] = (array_key_exists('category',$product)) ? $product['category'][count($product['category'])-1]->id : 'Product without category';
-        $this->logger->info(json_encode($productData));
+        $this->logger->info(json_encode($productData,JSON_PRETTY_PRINT));
     }
 
 	public function getWoowupStats()
