@@ -23,12 +23,14 @@ class WoowUpProductUploader implements StageInterface
 
 	public function __invoke($payload)
 	{
+        $begin = microtime(true);
         $processedProducts = [];
         foreach ($payload as $product) {
             $processedProducts[] = $product;
     		try {
                 $this->woowupClient->products->update($product['sku'], $product);
                 $this->logger->info("[Product] {$product['sku']} Updated Successfully");
+                $this->logProductData($product);
                 $this->woowupStats['updated']++;
             } catch (RequestException $e) {
                 $errorCode    = $e->getCode();
@@ -41,6 +43,7 @@ class WoowUpProductUploader implements StageInterface
                         try {
                             $this->woowupClient->products->create($product);
                             $this->logger->info("[Product] $sku Created Successfully");
+                            $this->logProductData($product);
                             $this->woowupStats['created']++;
                             continue;
                         } catch (\Exception $e) {
@@ -73,10 +76,22 @@ class WoowUpProductUploader implements StageInterface
                 $this->logger->info("[Product] $sku Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
                 $this->woowupStats['failed'][] = $product;
             }
+            $this->logger->info("Product processed in " . (microtime(true) - $begin) . " seconds");
         }
 
         return $processedProducts;
 	}
+
+    public function logProductData($product)
+    {
+        $sku = 'Product without sku'; $name = 'Product without name'; $base_name= 'Product without base_name'; $price = 'Product without price'; $offer_price = 'Product without offer_price'; $stock = 'Product without stock'; $release_date = 'Product without release_date';
+        extract($product,EXTR_OVERWRITE);
+        $productData=array('sku' => $sku, 'name' => $name, 'base_name' => $base_name,
+            'price' => $price, 'offer_price' => $offer_price , 'stock' => $stock,'release_date' => $release_date);
+        $productData['sku_encoded'] = ($sku != 'Product without sku') ? base64_encode($sku) : 'Product without sku';
+        $productData['last_category_id'] = (array_key_exists('category',$product)) ? $product['category'][count($product['category'])-1]['id'] : 'Product without category';
+        $this->logger->info(json_encode($productData,JSON_PRETTY_PRINT));
+    }
 
 	public function getWoowupStats()
 	{
