@@ -30,7 +30,7 @@ class WoowUpProductUploader implements StageInterface
     		try {
                 $this->woowupClient->products->update($product['sku'], $product);
                 $this->logger->info("[Product] {$product['sku']} Updated Successfully");
-                $this->logProductData($product['sku']);
+                $this->logProductData($product);
                 $this->woowupStats['updated']++;
             } catch (RequestException $e) {
                 $errorCode    = $e->getCode();
@@ -43,7 +43,7 @@ class WoowUpProductUploader implements StageInterface
                         try {
                             $this->woowupClient->products->create($product);
                             $this->logger->info("[Product] $sku Created Successfully");
-                            $this->logProductData($product['sku']);
+                            $this->logProductData($product);
                             $this->woowupStats['created']++;
                             continue;
                         } catch (\Exception $e) {
@@ -82,16 +82,15 @@ class WoowUpProductUploader implements StageInterface
         return $processedProducts;
 	}
 
-    public function logProductData($sku)
+    public function logProductData($product)
     {
-        $product = (array) $this->woowupClient->products->find($sku);
         $attributes = array('sku','name','base_name','price','offer_price','stock','release_date');
         $productData=[];
         foreach ($attributes as $attribute){
             $productData[$attribute] = (array_key_exists($attribute,$product)) ? $product[$attribute] : 'Product without ' . $attribute;
         }
         $productData['sku_encoded'] = ($productData['sku'] != 'Product without sku') ? base64_encode($product[$attribute]) : 'Product without sku';
-        $productData['last_category_id'] = (array_key_exists('category',$product)) ? $product['category'][count($product['category'])-1]->id : 'Product without category';
+        $productData['last_category_id'] = (array_key_exists('category',$product)) ? $product['category'][count($product['category'])-1]['id'] : 'Product without category';
         $this->logger->info(json_encode($productData,JSON_PRETTY_PRINT));
     }
 
