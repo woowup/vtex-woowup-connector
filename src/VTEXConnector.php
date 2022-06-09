@@ -64,6 +64,8 @@ class VTEXConnector
     const DEFAULT_SLEEP_SEC = 2;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 30;
 
+    const DEFAULT_SALES_WINDOW = 3;
+
     private $_host;
     private $_appName;
     private $_appKey;
@@ -179,12 +181,11 @@ class VTEXConnector
             $toDate = date('Y-m-d', strtotime('+1 day'));
         }
 
-        if ($hours === null) {
-            $hours = 3;
-        }
+        $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
+
         $toDate      = date('c', strtotime($toDate));
         $fromDate    = date('c', strtotime($fromDate));
-        $intervalSec = 3600 * $hours;
+        $intervalSec = 3600 * $salesWindow;
 
         if ($this->_salesChannel) {
             $params += ['f_salesChannel' => $this->_salesChannel];
