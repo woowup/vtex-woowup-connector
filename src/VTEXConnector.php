@@ -64,6 +64,8 @@ class VTEXConnector
     const DEFAULT_SLEEP_SEC = 2;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 30;
 
+    const DEFAULT_SALES_WINDOW = 3;
+
     private $_host;
     private $_appName;
     private $_appKey;
@@ -162,7 +164,7 @@ class VTEXConnector
      * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
      * @return array   $orders         orders in WoowUp's API format
      */
-    public function getOrders($fromDate = null, $toDate = null, $importing = false)
+    public function getOrders($fromDate = null, $toDate = null, $importing = false, $hours = null)
     {
         $params = array(
             'f_status' => join(',', $this->_status),
@@ -178,9 +180,12 @@ class VTEXConnector
         if ($toDate === null) {
             $toDate = date('Y-m-d', strtotime('+1 day'));
         }
+
+        $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
+
         $toDate      = date('c', strtotime($toDate));
         $fromDate    = date('c', strtotime($fromDate));
-        $intervalSec = 3600 * 3;
+        $intervalSec = 3600 * $salesWindow;
 
         if ($this->_salesChannel) {
             $params += ['f_salesChannel' => $this->_salesChannel];
