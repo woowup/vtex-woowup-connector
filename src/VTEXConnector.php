@@ -149,9 +149,9 @@ class VTEXConnector
         return $this->_categories;
     }
 
-    public function setFeature(bool $feature)
+    public function setFeature($feature)
     {
-        $this->feature = $feature;
+        $this->feature = (bool) $feature;
     }
 
     public function getFeature()
