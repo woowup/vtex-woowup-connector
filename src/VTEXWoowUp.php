@@ -255,7 +255,7 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importProducts($debug = false, $feature = false)
+    public function importProducts($debug = false, $feature = false, $cleanser)
     {
         $updatedSkus = [];
         $this->logger->info("Importing products");
@@ -268,7 +268,7 @@ class VTEXWoowUp
             $this->setUploadStage(
                 ($debug) ?
                     new WoowUpProductDebugger() :
-                    new WoowUpProductUploader($this->woowupClient, $this->logger)
+                    new WoowUpProductUploader($this->woowupClient, $this->logger, $cleanser)
             );
         }
 

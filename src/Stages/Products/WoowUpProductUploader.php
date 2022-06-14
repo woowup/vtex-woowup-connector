@@ -10,11 +10,13 @@ class WoowUpProductUploader implements StageInterface
 	protected $woowupClient;
 	protected $logger;
 	protected $woowupStats;
+    protected $cleanser;
 
-	public function __construct($woowupClient, $logger)
+	public function __construct($woowupClient, $logger, $cleanser)
 	{
 		$this->woowupClient = $woowupClient;
 		$this->logger       = $logger;
+        $this->cleanser     = $cleanser;
 
 		$this->resetWoowupStats();
 
@@ -88,6 +90,8 @@ class WoowUpProductUploader implements StageInterface
         extract($product,EXTR_OVERWRITE);
         $productData=array('sku' => $sku, 'name' => $name, 'base_name' => $base_name,
             'price' => $price, 'offer_price' => $offer_price , 'stock' => $stock,'release_date' => $release_date);
+        $productData['name'] = $this->cleanser::deleteAccents($productData['name'],true);
+        $productData['base_name'] = $this->cleanser::deleteAccents($productData['base_name'],true);
         $productData['sku_encoded'] = ($sku != 'Product without sku') ? base64_encode($sku) : 'Product without sku';
         $productData['last_category_id'] = (array_key_exists('category',$product)) ? $product['category'][count($product['category'])-1]['id'] : 'Product without category';
         $this->logger->info(json_encode($productData,JSON_PRETTY_PRINT));
