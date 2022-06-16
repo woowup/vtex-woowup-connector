@@ -82,6 +82,7 @@ class VTEXConnector
     private $_httpClient;
     private $_logger;
     private $feature;
+    private $_requestCount;
 
     public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger)
     {
@@ -100,6 +101,7 @@ class VTEXConnector
             $this->_allowedSellers = isset($vtexConfig['allowedSellers']) ? $vtexConfig['allowedSellers'] : null;
             $this->_syncCategories = isset($vtexConfig['syncCategories']) ? $vtexConfig['syncCategories'] : null;
             $this->_httpClient     = $httpClient;
+            $this->_requestCount    = 0;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
@@ -265,6 +267,7 @@ class VTEXConnector
                 $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
                 $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']]);
+                $this->_requestCount++;
 
                 if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                     throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -284,6 +287,7 @@ class VTEXConnector
             $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
             $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit-1, 'fq' => 'C:' . $leaf['path']]);
+            $this->_requestCount++;
 
             if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -299,6 +303,7 @@ class VTEXConnector
         }
 
         $this->_logger->info("Done! Total products retrieved " . $totalProductsRetrieved);
+        $this->_logger->info("Total requests made: " . $this->_requestCount);
     }
 
     /**
@@ -672,6 +677,7 @@ class VTEXConnector
     protected function getCategoryTree()
     {
         $response = $this->_get('/api/catalog_system/pub/category/tree/10', []);
+        $this->_requestCount++;
 
         if ($response->getStatusCode() === 200) {
             $categoryTree = [];
