@@ -13,7 +13,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     public function __construct($vtexConnector)
     {
         $this->vtexConnector = $vtexConnector;
-        $this->onlyMapsParentProducts = false;
+        $this->onlyMapsParentProducts = env($vtexConnector->getAppId(), false);
 
         return $this;
     }
