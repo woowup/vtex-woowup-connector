@@ -68,6 +68,7 @@ class VTEXConnector
 
     private $_host;
     private $_appName;
+    private $_appId;
     private $_appKey;
     private $_appToken;
     private $_status;
@@ -91,6 +92,7 @@ class VTEXConnector
 
             $this->_host           = 'http://' . $vtexConfig['appName'] . '.vtexcommercestable.com.br';
             $this->_appKey         = $vtexConfig['appKey'];
+            $this->_appId          = $vtexConfig['appId'];
             $this->_appToken       = $vtexConfig['appToken'];
             $this->_appName        = $vtexConfig['appName'];
             $this->_status         = isset($vtexConfig['status']) && $vtexConfig['status'] ? $vtexConfig['status'] : [self::STATUS_INVOICED];
@@ -127,6 +129,11 @@ class VTEXConnector
     public function getAppName()
     {
         return $this->_appName;
+    }
+
+    public function getAppId()
+    {
+        return $this->_appId;
     }
 
     public function getBranchName()
