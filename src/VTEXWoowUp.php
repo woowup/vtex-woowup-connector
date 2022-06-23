@@ -36,9 +36,9 @@ class VTEXWoowUp
     protected $errorHandler;
     private $apiKey;
 
-    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler)
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null)
     {
-        $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger);
+        $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features);
         $this->logger        = $logger;
         $this->woowupClient  = $woowupClient;
         $this->errorHandler  = $errorHandler;

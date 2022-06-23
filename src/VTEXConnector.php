@@ -83,8 +83,10 @@ class VTEXConnector
     private $_httpClient;
     private $_logger;
     private $feature;
+    private $features;
 
-    public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger)
+
+    public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $features = null)
     {
         try {
             $this->_logger = $logger;
@@ -102,6 +104,7 @@ class VTEXConnector
             $this->_allowedSellers = isset($vtexConfig['allowedSellers']) ? $vtexConfig['allowedSellers'] : null;
             $this->_syncCategories = isset($vtexConfig['syncCategories']) ? $vtexConfig['syncCategories'] : null;
             $this->_httpClient     = $httpClient;
+            $this->features        = $features;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
@@ -164,6 +167,11 @@ class VTEXConnector
     public function getFeature()
     {
         return $this->feature;
+    }
+
+    public function getFeatures()
+    {
+        return $this->features;
     }
 
     /**
