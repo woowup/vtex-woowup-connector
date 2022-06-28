@@ -13,7 +13,11 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     public function __construct($vtexConnector)
     {
         $this->vtexConnector = $vtexConnector;
-        $this->onlyMapsParentProducts = false;
+        if(in_array('vtex-parents', $this->vtexConnector->getFeatures())){
+            $this->onlyMapsParentProducts = $this->mapsParentProducts();
+        } else {
+            $this->onlyMapsParentProducts = false;
+        }
 
         return $this;
     }
@@ -135,5 +139,14 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         } else {
             return null;
         }
+    }
+
+    private function mapsParentProducts()
+    {
+        $appId = $this->vtexConnector->getAppId();
+
+        $parentAccounts = explode(',', env('VTEX_PARENTS'));
+
+        return in_array(strval($appId), $parentAccounts);
     }
 }
