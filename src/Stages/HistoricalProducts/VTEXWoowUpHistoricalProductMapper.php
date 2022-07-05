@@ -3,8 +3,9 @@
 namespace WoowUpConnectors\Stages\HistoricalProducts;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Stages\StageMapperForParentProducts;
 
-class VTEXWoowUpHistoricalProductMapper implements StageInterface
+class VTEXWoowUpHistoricalProductMapper extends StageMapperForParentProducts
 {
     protected $vtexConnector;
     protected $stockEqualsZero;
@@ -14,7 +15,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
     {
         $this->vtexConnector = $vtexConnector;
         $this->stockEqualsZero = $stockEqualsZero;
-        $this->onlyMapsParentProducts = false;
+        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
 
         return $this;
     }
