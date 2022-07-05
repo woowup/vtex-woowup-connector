@@ -1,6 +1,7 @@
 <?php
 
 namespace WoowUpConnectors\Stages;
+use League\Pipeline\StageInterface;
 
 class StageMapperForParentProducts implements StageInterface
 {
