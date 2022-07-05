@@ -3,7 +3,7 @@
 namespace WoowUpConnectors\Stages;
 use League\Pipeline\StageInterface;
 
-class StageMapperForParentProducts implements StageInterface
+abstract class StageMapperForParentProducts implements StageInterface
 {
     protected function mapsParentProducts($appId, $features)
     {
