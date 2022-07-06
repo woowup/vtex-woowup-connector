@@ -436,7 +436,7 @@ class VTEXConnector
         $this->_logger->info("Getting updated and created customers from date " . $updatedAtMin . "and dataEntity $dataEntity");
         $params = [
             '_fields' => 'id',
-            '_where' => "(updatedIn>=$updatedAtMin) OR ((updatedIn is null) AND (createdIn>=$updatedAtMin))",
+            '_where' => "(updatedIn>$updatedAtMin) OR ((updatedIn is null) AND (createdIn>$updatedAtMin))",
         ];
         $offset = 0;
         $limit  = 100;
