@@ -3,8 +3,9 @@
 namespace WoowUpConnectors\Stages\Orders;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Stages\StageMapperForParentProducts;
 
-class VTEXWoowUpOrderMapper implements StageInterface
+class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
 {
     const COMMUNICATION_ENABLED  = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
@@ -20,8 +21,8 @@ class VTEXWoowUpOrderMapper implements StageInterface
 		$this->vtexConnector = $vtexConnector;
 		$this->importing     = $importing;
         $this->logger        = $logger;
-        $this->onlyMapsParentProducts = false;
-	}
+        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
+    }
 
 	public function __invoke($payload)
 	{

@@ -3,8 +3,9 @@
 namespace WoowUpConnectors\Stages\Products;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Stages\StageMapperForParentProducts;
 
-abstract class VTEXWoowUpProductMapper implements StageInterface
+abstract class VTEXWoowUpProductMapper extends StageMapperForParentProducts
 {
     protected $vtexConnector;
     protected $onlyMapsParentProducts;
@@ -13,11 +14,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     public function __construct($vtexConnector)
     {
         $this->vtexConnector = $vtexConnector;
-        if(in_array('vtex-parents', $this->vtexConnector->getFeatures())){
-            $this->onlyMapsParentProducts = $this->mapsParentProducts();
-        } else {
-            $this->onlyMapsParentProducts = false;
-        }
+        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
 
         return $this;
     }
@@ -141,12 +138,4 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         }
     }
 
-    private function mapsParentProducts()
-    {
-        $appId = $this->vtexConnector->getAppId();
-
-        $parentAccounts = explode(',', env('VTEX_PARENTS'));
-
-        return in_array(strval($appId), $parentAccounts);
-    }
 }
