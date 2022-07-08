@@ -22,6 +22,9 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
 		$this->importing     = $importing;
         $this->logger        = $logger;
         $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
+
+        $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
+        $this->logger->info($productsLog);
     }
 
 	public function __invoke($payload)

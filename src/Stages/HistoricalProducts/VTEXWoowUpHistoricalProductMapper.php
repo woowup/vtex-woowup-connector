@@ -17,6 +17,9 @@ class VTEXWoowUpHistoricalProductMapper extends StageMapperForParentProducts
         $this->stockEqualsZero = $stockEqualsZero;
         $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
 
+        $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
+        $this->vtexConnector->_logger->info($productsLog);
+
         return $this;
     }
 

@@ -81,7 +81,7 @@ class VTEXConnector
     private $_categories;
 
     private $_httpClient;
-    private $_logger;
+    public $_logger;
     private $feature;
     private $features;
 
