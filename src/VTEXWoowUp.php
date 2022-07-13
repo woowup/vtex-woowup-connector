@@ -216,16 +216,13 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($fromDate = null, $toDate = null,$days= null, $debug = false, $dataEntity = "CL")
+    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL")
     {
-        //$this->logger->info("Importing customers from $days days and entity $dataEntity");
-        if ($fromDate !== null) {
-            $this->logger->info("Starting date: " . $fromDate);
-        } else {
-            $this->logger->info("No starting date specified");
+        if (!$fromDate) {
+            $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
         }
 
-        //$fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));

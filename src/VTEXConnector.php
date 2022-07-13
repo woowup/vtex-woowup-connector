@@ -429,9 +429,6 @@ class VTEXConnector
 
     public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL")
     {
-        if ($fromDate === null) {
-            $fromDate = date('Y-m-d', strtotime('-3 days'));
-        }
         if($toDate === null){
             $toDate = date('Y-m-d', strtotime('+1 days'));
         }
@@ -439,7 +436,7 @@ class VTEXConnector
         $this->_logger->info("Getting updated and created customers from date " . $fromDate. " to " . $toDate . " and dataEntity $dataEntity");
         $params = [
             '_fields' => 'id',
-            '_where' => "((updatedIn>$toDate) AND (updatedIn<$fromDate)) OR ((updatedIn is null) AND (createdIn>$toDate) AND (createdIn<$fromDate))",
+            '_where' => "((updatedIn<$toDate) AND (updatedIn>$fromDate)) OR ((updatedIn is null) AND (createdIn<$toDate) AND (createdIn>$fromDate))",
         ];
         $offset = 0;
         $limit  = 100;
