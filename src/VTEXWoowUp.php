@@ -216,10 +216,16 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($days, $debug = false, $dataEntity = "CL")
+    public function importCustomers($fromDate = null, $toDate = null,$days= null, $debug = false, $dataEntity = "CL")
     {
-        $this->logger->info("Importing customers from $days days and entity $dataEntity");
-        $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        //$this->logger->info("Importing customers from $days days and entity $dataEntity");
+        if ($fromDate !== null) {
+            $this->logger->info("Starting date: " . $fromDate);
+        } else {
+            $this->logger->info("No starting date specified");
+        }
+
+        //$fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
@@ -238,7 +244,7 @@ class VTEXWoowUp
         }
 
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomerId) {
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomerId) {
             $this->logger->info("Processing customer " . $vtexCustomerId);
             $this->run($vtexCustomerId);
         }
