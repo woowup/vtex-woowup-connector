@@ -216,10 +216,33 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($days, $debug = false, $dataEntity = "CL")
+    public function importCustomers($days, $debug = false, $dataEntity = "CL", $toFile = false)
     {
         $this->logger->info("Importing customers from $days days and entity $dataEntity");
         $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+
+        $this->initProcessCustomers($dataEntity,$debug);
+        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers) {
+            if(!$toFile){
+                $this->processCustomers($vtexCustomers);
+            }else{
+                yield $vtexCustomers;
+            }
+        }
+        if(!$toFile){
+            $this->postProcessCustomer();
+        }
+
+    }
+
+    public function importCustomersByIDs($dataEntity = "CL", $debug = false, $customer)
+    {
+        $this->initProcessCustomers($dataEntity, $debug);
+        $this->processCustomers($customer);
+        $this->postProcess();
+    }
+
+    public function initProcessCustomers($dataEntity,$debug){
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
@@ -238,11 +261,9 @@ class VTEXWoowUp
         }
 
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomerId) {
-            $this->logger->info("Processing customer " . $vtexCustomerId);
-            $this->run($vtexCustomerId);
-        }
+    }
 
+    public function postProcess(){
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");
         $this->logger->info("Created customers: " . $woowupStats['created']);
@@ -251,8 +272,13 @@ class VTEXWoowUp
         $this->uploadStage->resetWoowupStats();
 
         $this->resetStages();
+    }
 
-        return true;
+    public function processCustomers($vtexCustomers){
+        foreach ($vtexCustomers as $vtexCustomer) {
+            $this->logger->info("Processing customer" . $vtexCustomer->id);
+            $this->run($vtexCustomer->id);
+        }
     }
 
     public function importProducts($debug = false, $feature = false, $cleanser)
