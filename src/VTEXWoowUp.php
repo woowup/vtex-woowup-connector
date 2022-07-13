@@ -222,34 +222,36 @@ class VTEXWoowUp
         $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
 
         $this->initProcessCustomers($dataEntity,$debug);
-        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers) {
-            if(!$toFile){
+
+        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers)
+        {
+            if(!$toFile) {
+                $this->logger->info('va a procesar: '.count($vtexCustomers).' clientes');
                 $this->processCustomers($vtexCustomers);
-            }else{
-                yield $vtexCustomers;
+                continue;
             }
+
+            yield $vtexCustomers;
         }
-        if(!$toFile){
+        if(!$toFile) {
             $this->postProcessCustomer();
         }
 
     }
 
-    public function importCustomersByIDs($dataEntity = "CL", $debug = false, $customer)
-    {
+    public function importCustomersByIDs($dataEntity = "CL", $debug = false, $customers){
         $this->initProcessCustomers($dataEntity, $debug);
-        $this->processCustomers($customer);
-        $this->postProcess();
+        $this->processCustomers($customers);
+        $this->postProcessCustomer();
     }
 
-    public function initProcessCustomers($dataEntity,$debug){
-
+    public function initProcessCustomers($dataEntity, $debug){
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey ));
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey ));
         }
 
         if (!$this->uploadStage) {
@@ -263,7 +265,7 @@ class VTEXWoowUp
         $this->preparePipeline();
     }
 
-    public function postProcess(){
+    public function postProcessCustomer(){
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");
         $this->logger->info("Created customers: " . $woowupStats['created']);
