@@ -223,8 +223,7 @@ class VTEXWoowUp
 
         $this->initProcessCustomers($dataEntity,$debug);
 
-        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers)
-        {
+        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers) {
             if(!$toFile) {
                 $this->logger->info('va a procesar: '.count($vtexCustomers).' clientes');
                 $this->processCustomers($vtexCustomers);
@@ -233,6 +232,7 @@ class VTEXWoowUp
 
             yield $vtexCustomers;
         }
+
         if(!$toFile) {
             $this->postProcessCustomer();
         }
