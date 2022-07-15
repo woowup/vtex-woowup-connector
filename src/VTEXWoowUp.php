@@ -226,7 +226,7 @@ class VTEXWoowUp
 
         $this->initProcessCustomers($dataEntity,$debug);
 
-        foreach ($this->vtexConnector->getCustomers($fromDate, $dataEntity) as $vtexCustomers) {
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
             if(!$toFile) {
                 $this->logger->info('va a procesar: '.count($vtexCustomers).' clientes');
                 $this->processCustomers($vtexCustomers);
@@ -248,13 +248,14 @@ class VTEXWoowUp
         $this->postProcessCustomer();
     }
 
-    public function initProcessCustomers($dataEntity, $debug){
+    public function initProcessCustomers($dataEntity, $debug)
+    {
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey ));
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey));
         }
 
         if (!$this->uploadStage) {
