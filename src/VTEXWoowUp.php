@@ -216,10 +216,13 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($days, $debug = false, $dataEntity = "CL", $toFile = false)
+    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false)
     {
-        $this->logger->info("Importing customers from $days days and entity $dataEntity");
-        $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        if (!$fromDate) {
+            $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        }
+
+        $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
 
         $this->initProcessCustomers($dataEntity,$debug);
 
@@ -264,6 +267,7 @@ class VTEXWoowUp
 
         $this->preparePipeline();
     }
+
 
     public function postProcessCustomer()
     {
