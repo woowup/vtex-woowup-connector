@@ -265,7 +265,8 @@ class VTEXWoowUp
         $this->preparePipeline();
     }
 
-    public function postProcessCustomer(){
+    public function postProcessCustomer()
+    {
         $woowupStats = $this->uploadStage->getWoowupStats();
         $this->logger->info("Finished. Stats:");
         $this->logger->info("Created customers: " . $woowupStats['created']);
@@ -276,7 +277,8 @@ class VTEXWoowUp
         $this->resetStages();
     }
 
-    public function processCustomers($vtexCustomers){
+    public function processCustomers($vtexCustomers)
+    {
         foreach ($vtexCustomers as $vtexCustomer) {
             $this->logger->info("Processing customer" . $vtexCustomer->id);
             $this->run($vtexCustomer->id);
