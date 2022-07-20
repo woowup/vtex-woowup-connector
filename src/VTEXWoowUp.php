@@ -223,9 +223,7 @@ class VTEXWoowUp
         }
 
         $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
-
         $this->initProcessCustomers($dataEntity,$debug);
-
         foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
             if(!$toFile) {
                 $this->logger->info('va a procesar: '.count($vtexCustomers).' clientes');
