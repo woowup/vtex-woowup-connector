@@ -242,9 +242,16 @@ class VTEXWoowUp
         }
 
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomerId) {
-            $this->logger->info("Processing customer " . $vtexCustomerId);
-            $this->run($vtexCustomerId);
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
+            foreach ($vtexCustomers as $vtexCustomer) {
+                $vtexCustomerId = $vtexCustomer->id;
+                if (!$vtexCustomerId) {
+                    continue;
+                }
+                $this->logger->info("Processing customer " . $vtexCustomerId);
+                $this->run($vtexCustomerId);
+            }
+
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
@@ -257,6 +264,67 @@ class VTEXWoowUp
         $this->resetStages();
 
         return true;
+    }
+
+    public function importCustomersWithYield($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false)
+    {
+        if (!$fromDate) {
+            $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        }
+
+        $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
+        $this->initProcessCustomers($dataEntity,$debug);
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
+            yield $vtexCustomers;
+        }
+    }
+
+    public function importCustomersByIDs($dataEntity = "CL", $debug = false, $customers){
+        $this->initProcessCustomers($dataEntity, $debug);
+        $this->processCustomers($customers);
+        $this->postProcessCustomer();
+    }
+
+    public function initProcessCustomers($dataEntity, $debug)
+    {
+        if (!$this->downloadStage) {
+            $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
+        }
+
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new DebugUploadStage() :
+                    new WoowUpCustomerUploader($this->woowupClient, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+    }
+
+
+    public function postProcessCustomer()
+    {
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created customers: " . $woowupStats['created']);
+        $this->logger->info("Updated customers: " . $woowupStats['updated']);
+        $this->logger->info("Failed customers: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+    }
+
+    public function processCustomers($vtexCustomers)
+    {
+        foreach ($vtexCustomers as $vtexCustomer) {
+            $this->logger->info("Processing customer" . $vtexCustomer->id);
+            $this->run($vtexCustomer->id);
+        }
     }
 
     public function importProducts($debug = false, $feature = false, $cleanser)
