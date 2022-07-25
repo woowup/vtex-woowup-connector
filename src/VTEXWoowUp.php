@@ -241,9 +241,16 @@ class VTEXWoowUp
         }
 
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomerId) {
-            $this->logger->info("Processing customer " . $vtexCustomerId);
-            $this->run($vtexCustomerId);
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
+            foreach ($vtexCustomers as $vtexCustomer) {
+                $vtexCustomerId = $vtexCustomer['id'];
+                if (!$vtexCustomerId) {
+                    continue;
+                }
+                $this->logger->info("Processing customer " . $vtexCustomerId);
+                $this->run($vtexCustomerId);
+            }
+
         }
 
         $woowupStats = $this->uploadStage->getWoowupStats();
