@@ -216,7 +216,49 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false)
+    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL")
+    {
+        if (!$fromDate) {
+            $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
+        }
+
+        $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
+
+        if (!$this->downloadStage) {
+            $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
+        }
+
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey ));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new DebugUploadStage() :
+                    new WoowUpCustomerUploader($this->woowupClient, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomerId) {
+            $this->logger->info("Processing customer " . $vtexCustomerId);
+            $this->run($vtexCustomerId);
+        }
+
+        $woowupStats = $this->uploadStage->getWoowupStats();
+        $this->logger->info("Finished. Stats:");
+        $this->logger->info("Created customers: " . $woowupStats['created']);
+        $this->logger->info("Updated customers: " . $woowupStats['updated']);
+        $this->logger->info("Failed customers: " . count($woowupStats['failed']));
+        $this->uploadStage->resetWoowupStats();
+
+        $this->resetStages();
+
+        return true;
+    }
+
+    public function importCustomersWithYield($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false)
     {
         if (!$fromDate) {
             $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
