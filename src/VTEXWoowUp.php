@@ -15,6 +15,7 @@ use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
 use WoowUpConnectors\Stages\Orders\WoowUpCCInfoStage;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithoutChildrenMapper;
+use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
 use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
@@ -264,7 +265,11 @@ class VTEXWoowUp
         $this->logger->info("Importing products");
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
+            if ($this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures())){
+                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
+            } else {
+                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+            }
         }
 
         if (!$this->uploadStage) {
@@ -339,6 +344,17 @@ class VTEXWoowUp
         $this->resetStages();
 
         return true;
+    }
+
+
+    protected function mapsParentProducts($appId, $features)
+    {
+        $mapsParentProducts = false;
+        if(in_array('vtex-parents', $features)){
+            $parentAccounts = explode(',', env('VTEX_PARENTS'));
+            $mapsParentProducts = in_array(strval($appId), $parentAccounts);
+        }
+        return $mapsParentProducts;
     }
 
     public function getConnector()
