@@ -243,7 +243,7 @@ class VTEXWoowUp
         $this->preparePipeline();
         foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity) as $vtexCustomers) {
             foreach ($vtexCustomers as $vtexCustomer) {
-                $vtexCustomerId = $vtexCustomer['id'];
+                $vtexCustomerId = $vtexCustomer->id;
                 if (!$vtexCustomerId) {
                     continue;
                 }
