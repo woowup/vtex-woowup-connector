@@ -12,15 +12,15 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
     const DISABLED_REASON_OTHER  = 'other';
     const INVALID_EMAILS         = ['ct.vtex.com.br', 'mercadolibre.com'];
 
-	protected $importing;
-	protected $vtexConnector;
+    protected $importing;
+    protected $vtexConnector;
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
 
-	public function __construct($vtexConnector, $importing = false, $logger)
-	{
-		$this->vtexConnector = $vtexConnector;
-		$this->importing     = $importing;
+    public function __construct($vtexConnector, $importing = false, $logger)
+    {
+        $this->vtexConnector = $vtexConnector;
+        $this->importing     = $importing;
         $this->logger        = $logger;
         $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
 
@@ -28,16 +28,16 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
         $this->logger->info($productsLog);
     }
 
-	public function __invoke($payload)
-	{
-		if (!is_null($payload)) {
-			return $this->buildOrder($payload);
-		}
+    public function __invoke($payload)
+    {
+        if (!is_null($payload)) {
+            return $this->buildOrder($payload);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
+    /**
      * Maps a VTEX order to WoowUp's format
      * @param  object $vtexOrder   VTEX order
      * @return array               WoowUp order
