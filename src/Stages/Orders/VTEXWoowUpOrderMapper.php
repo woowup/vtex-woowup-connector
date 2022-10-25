@@ -15,6 +15,7 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
 	protected $importing;
 	protected $vtexConnector;
     protected $onlyMapsParentProducts;
+    protected $productBlacklist;
 
 	public function __construct($vtexConnector, $importing = false, $logger)
 	{
@@ -158,6 +159,11 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
                 $sku = $this->getProductRefId($item->productId);
             } else {
                 $sku = ($item->refId) ? $item->refId : $this->getProductRefId($item->productId);
+            }
+
+            if (in_array($sku, $this->productBlacklist)) {
+                $this->logger->notice("Caught order item with blacklisted sku: {$sku}");
+                continue;
             }
 
             $product = [
