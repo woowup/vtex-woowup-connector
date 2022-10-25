@@ -15,7 +15,7 @@ class VTEXWoowUpOrderMapper extends StageMapperForParentProducts
 	protected $importing;
 	protected $vtexConnector;
     protected $onlyMapsParentProducts;
-    protected $productBlacklist;
+    protected $productBlacklist = [];
 
 	public function __construct($vtexConnector, $importing = false, $logger)
 	{
