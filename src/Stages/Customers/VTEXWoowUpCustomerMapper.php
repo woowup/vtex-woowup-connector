@@ -59,6 +59,10 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 'last_name' => ucwords(mb_strtolower($vtexCustomer->lastName)),
             ];
 
+            if (isset($vtexCustomer->gender) && !empty($vtexCustomer->gender)) {
+                $customer['gender'] = $vtexCustomer->gender == 'male' ? "M" : "F";
+            }
+
             if (isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate)) {
                 $birthdate = date('Y-m-d', strtotime($vtexCustomer->birthDate));
                 $customer['birthdate'] = $birthdate;
