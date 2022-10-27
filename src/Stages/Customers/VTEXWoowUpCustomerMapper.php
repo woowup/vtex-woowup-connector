@@ -59,6 +59,8 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 'last_name' => ucwords(mb_strtolower($vtexCustomer->lastName)),
             ];
 
+            $this->setGender($vtexCustomer, $customer);
+
             if (isset($vtexCustomer->birthDate) && !empty($vtexCustomer->birthDate)) {
                 $birthdate = date('Y-m-d', strtotime($vtexCustomer->birthDate));
                 $customer['birthdate'] = $birthdate;
@@ -205,5 +207,17 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         ];
 
         return $address;
+    }
+
+    /**
+     * @param $vtexCustomer
+     * @param array $customer
+     * @return void
+     */
+    protected function setGender($vtexCustomer, array &$customer): void
+    {
+        if (isset($vtexCustomer->gender) && !empty($vtexCustomer->gender)) {
+            $customer['gender'] = $vtexCustomer->gender == 'male' ? "M" : "F";
+        }
     }
 }
