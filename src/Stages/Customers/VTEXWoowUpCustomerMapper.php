@@ -94,7 +94,9 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             if (isset($customer['email'])) {
                 foreach (self::INVALID_EMAILS as $email) {
                     if (stripos($customer['email'], $email) !== false) {
-                        $customer['email'] = $customer['document'] . '@noemail.com';
+                        $customer['email'] = array_key_exists('document', $customer)
+                            ? $customer['document'] . '@noemail.com'
+                            : 'noemail@noemail.com';
                         $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
                         $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
                     }
