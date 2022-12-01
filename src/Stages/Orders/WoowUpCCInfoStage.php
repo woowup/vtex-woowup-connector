@@ -46,28 +46,22 @@ class WoowUpCCInfoStage implements StageInterface
             if (!isset($payment['first_digits'])) continue;
 
             try {
-                $response = json_decode($this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']));
+                $result = $this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']);
             } catch (\Exception $e) {
-                if ($e->hasResponse() && (in_array($e->getResponse()->getStatusCode(), self::$httpCodes))) {
-                    $this->logger->info("Bank info not found");
-                    $this->logger->info("Error: Code ". $e->getResponse()->getStatusCode(). ", Message: ".$e->getMessage());
-                } else {
-                    $this->errorHandler->captureException($e);
-                    $this->logger->info(" Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
-                }
+                $this->errorHandler->captureException($e);
+                $this->logger->info(" Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
                 continue;
             }
 
-            if (!@$response->payload) continue;
+            if (!isset($result)) {
+                continue;
+            }
 
-            if (!@$response->payload->type) continue;
-
-            $payment['type'] = $response->payload->type;
-            $response->payload->scheme && $payment['brand'] = $response->payload->scheme;
-            $response->payload->bank->name && $payment['bank'] = $response->payload->bank->name;
+            $result->type && $payment['type'] = $result->type;
+            $result->scheme && $payment['brand'] = $result->scheme;
+            $result->bank && $result->bank->name && $payment['bank'] = $result->bank->name;
             $info[] = $payment;
         }
 
         return $info;
-    }
-}
+    }}
