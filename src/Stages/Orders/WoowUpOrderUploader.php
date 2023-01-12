@@ -41,7 +41,6 @@ class WoowUpOrderUploader implements StageInterface
         try {
             $this->woowupClient->purchases->create($order);
             $this->logger->info("[Purchase] {$order['invoice_number']} Created Successfully");
-            $this->logPurcahseDetailData($order);
             $this->woowupStats['created']++;
             return true;
         } catch (RequestException $e ) {
@@ -64,7 +63,6 @@ class WoowUpOrderUploader implements StageInterface
                                 if ($this->updateOrder) {
                                     $this->woowupClient->purchases->update($order);
                                     $this->logger->info("[Purchase] {$invoiceNumber} Updated Successfully");
-                                    $this->logPurcahseDetailData($order);
                                     $this->woowupStats['updated']++;
                                 }
                                 return true;
@@ -90,18 +88,6 @@ class WoowUpOrderUploader implements StageInterface
             $this->woowupStats['failed'][] = $order;
             return false;
         }
-    }
-
-    public function logPurcahseDetailData($order)
-    {
-        $details = [];
-        foreach ($order['purchase_detail'] as $item) {
-            $details[] = [
-                'sku' => $item['sku'],
-                'productName' => $item['product_name']
-            ];
-        }
-        $this->logger->info(json_encode($details));
     }
 
     public function getWoowupStats()
