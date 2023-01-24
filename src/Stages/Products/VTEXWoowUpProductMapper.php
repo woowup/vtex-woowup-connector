@@ -14,7 +14,7 @@ abstract class VTEXWoowUpProductMapper extends StageMapperForParentProducts
     public function __construct($vtexConnector)
     {
         $this->vtexConnector = $vtexConnector;
-        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
+        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId());
 
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
         $this->vtexConnector->_logger->info($productsLog);
