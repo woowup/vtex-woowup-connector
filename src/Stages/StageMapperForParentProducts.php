@@ -5,13 +5,9 @@ use League\Pipeline\StageInterface;
 
 abstract class StageMapperForParentProducts implements StageInterface
 {
-    protected function mapsParentProducts($appId, $features)
+    protected function mapsParentProducts($appId)
     {
-        $mapsParentProducts = false;
-        if(in_array('vtex-parents', $features)){
-            $parentAccounts = explode(',', env('VTEX_PARENTS'));
-            $mapsParentProducts = in_array(strval($appId), $parentAccounts);
-        }
-        return $mapsParentProducts;
+        $parentAccounts = explode(',', env('VTEX_PARENTS'));
+        return in_array(strval($appId), $parentAccounts);
     }
 }
