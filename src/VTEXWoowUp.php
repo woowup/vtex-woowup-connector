@@ -333,7 +333,7 @@ class VTEXWoowUp
         $this->logger->info("Importing products");
 
         if (!$this->mapStage) {
-            if ($this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures())){
+            if ($this->mapsParentProducts($this->vtexConnector->getAppId())){
                 $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
             } else {
                 $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
@@ -415,14 +415,10 @@ class VTEXWoowUp
     }
 
 
-    protected function mapsParentProducts($appId, $features)
+    protected function mapsParentProducts($appId)
     {
-        $mapsParentProducts = false;
-        if(in_array('vtex-parents', $features)){
-            $parentAccounts = explode(',', env('VTEX_PARENTS'));
-            $mapsParentProducts = in_array(strval($appId), $parentAccounts);
-        }
-        return $mapsParentProducts;
+        $parentAccounts = explode(',', env('VTEX_PARENTS'));
+        return in_array(strval($appId), $parentAccounts);
     }
 
     public function getConnector()
