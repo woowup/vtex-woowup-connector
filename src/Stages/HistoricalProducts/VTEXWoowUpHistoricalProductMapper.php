@@ -136,22 +136,12 @@ class VTEXWoowUpHistoricalProductMapper extends StageMapperForParentProducts
 
     protected function mapCategories($categoriesById)
     {
-        $firstCategory = true;
         $categories = [];
         foreach ($categoriesById as $key => $value) {
-            if ($firstCategory) {
-                $categories[$key] = [
-                    'id'   => (string) $key,
-                    'name' => (string) $value
-                ];
-                $firstCategory = false;
-            } else {
-                $categories[$key] = [
-                    'id'   => (string) $categories[$previousId]['id'] . '-' . $key,
-                    'name' => (string) $value
-                ];
-            }
-            $previousId = $key;
+            $categories[$key] = [
+                'id'   => (string) $key,
+                'name' => (string) $value
+            ];
         }
         return $categories;
     }
