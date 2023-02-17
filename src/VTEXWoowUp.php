@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors;
 
+use WoowUpConnectors\Stages\VTEXProductTypeSolver;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionDownloader;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionMapper;
 use WoowUpConnectors\VTEXConnector;
@@ -333,10 +334,10 @@ class VTEXWoowUp
         $this->logger->info("Importing products");
 
         if (!$this->mapStage) {
-            if ($this->mapsParentProducts($this->vtexConnector->getAppId())){
-                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
-            } else {
+            if (VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId())){
                 $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+            } else {
+                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
             }
         }
 
@@ -412,13 +413,6 @@ class VTEXWoowUp
         $this->resetStages();
 
         return true;
-    }
-
-
-    protected function mapsParentProducts($appId)
-    {
-        $parentAccounts = explode(',', env('VTEX_PARENTS'));
-        return in_array(strval($appId), $parentAccounts);
     }
 
     public function getConnector()
