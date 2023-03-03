@@ -118,7 +118,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $customer['telephone'] = $vtexOrder->clientProfileData->phone;
         }
         $email = $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email);
-        if (!empty($email)) {
+        if (!empty($email) && !str_contains($email, 'unavailable')) {
             $customer['email'] = $email;
             foreach (self::INVALID_EMAILS as $invalidEmail) {
                 if (stripos($customer['email'], $invalidEmail) !== false) {
