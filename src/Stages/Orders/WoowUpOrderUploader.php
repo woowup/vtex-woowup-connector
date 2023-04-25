@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors\Stages\Orders;
 
+use Exception;
 use GuzzleHttp\Exception\RequestException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Stages\Customers\WoowUpCustomerUploader;
@@ -60,12 +61,7 @@ class WoowUpOrderUploader implements StageInterface
                             case 'duplicated_purchase_number':
                                 $this->logger->info("[Purchase] {$invoiceNumber} Duplicated");
                                 $this->woowupStats['duplicated']++;
-                                if ($this->updateOrder) {
-                                    $this->woowupClient->purchases->update($order);
-                                    $this->logger->info("[Purchase] {$invoiceNumber} Updated Successfully");
-                                    $this->woowupStats['updated']++;
-                                }
-                                return true;
+                                return $this->updateOrder($order, $invoiceNumber);
                             case 'internal_error':
                                 $errorMessage = $body['message'] ?? '';
                                 break;
@@ -108,5 +104,31 @@ class WoowUpOrderUploader implements StageInterface
     	];
 
     	return $this;
+    }
+
+    private function updateOrder($order, string $invoiceNumber)
+    {
+        try {
+            if ($this->updateOrder) {
+                $this->woowupClient->purchases->update($order);
+                $this->logger->info("[Purchase] $invoiceNumber Updated Successfully");
+                $this->woowupStats['updated']++;
+            }
+        } catch (Exception $e) {
+            if (!method_exists($e, 'getResponse')) {
+                return false;
+            }
+
+            $response = json_decode($e->getResponse()->getBody(), true);
+
+            if ($response['code'] === 'user_not_found') {
+                $this->logger->info("[Purchase] $invoiceNumber is already associated with another Customer. Skipping Order...");
+                return true;
+            }
+
+            $this->logger->info("[Purchase] $invoiceNumber Error: " . $response['message']);
+            return false;
+        }
+        return true;
     }
 }
