@@ -780,7 +780,7 @@ class VTEXConnector
                     $code = $response->getStatusCode();
                     $body = (string)$e->getResponse()->getBody();
                     $body = json_decode($body);
-                    $message = $body->Message??$code;
+                    $message = $body->Message ?? $body->error->message ?? $code;
                     $this->_logger->error("Error [" . $code . "] " . $message);
                     if ($response->getStatusCode() == 429) {
                         $this->_logger->info("Too many request");
