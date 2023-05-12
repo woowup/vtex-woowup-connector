@@ -787,6 +787,8 @@ class VTEXConnector
                         sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                    } elseif (in_array($response->getStatusCode(), [500, 503, 504])) {
+                        $this->_logger->info("VTEX Internal server error");
                     } else {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
                     }
