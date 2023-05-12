@@ -788,7 +788,8 @@ class VTEXConnector
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                     } elseif (in_array($response->getStatusCode(), [500, 503, 504])) {
-                        $this->_logger->info("VTEX Internal server error");
+                        $isVTEXServerError = true;
+                        $this->_logger->info("VTEX Server error, endpoint: " . $endpoint . " queryParams: " . json_encode($queryParams));
                     } else {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams, true);
                     }
@@ -800,6 +801,10 @@ class VTEXConnector
             sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
         $this->_logger->info("Max request attempts reached");
+
+        if (isset($isVTEXServerError) && $isVTEXServerError) {
+            throw new VTEXRequestException($message . " (max attempts reached)", $code, $endpoint, $queryParams);
+        }
         throw new VTEXException($endpoint);
     }
 
