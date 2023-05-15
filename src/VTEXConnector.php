@@ -238,9 +238,10 @@ class VTEXConnector
                 $totalOrders = $response->paging->total;
 
                 while ($response->paging->pages > self::VTEX_PAGE_LIMIT) {
+                    $this->_logger->info("Current page limit is " . self::VTEX_PAGE_LIMIT . ". Halving interval...");
                     $intervalSec = floor($intervalSec / 2);
                     $params['f_creationDate'] = $this->getDateFilter($timeStamp, $intervalSec);
-
+                    $this->_logger->info("Dates " . $params['f_creationDate']);
                     $response = $this->_get('/api/oms/pvt/orders/', $params);
                     $this->ensureIsStatusOK($response);
                     $response    = json_decode($response->getBody());
