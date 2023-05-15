@@ -238,7 +238,7 @@ class VTEXConnector
                 $totalOrders = $response->paging->total;
 
                 while ($response->paging->pages > self::VTEX_PAGE_LIMIT) {
-                    $intervalSec = round($intervalSec / 2);
+                    $intervalSec = floor($intervalSec / 2);
                     $params['f_creationDate'] = $this->getDateFilter($timeStamp, $intervalSec);
 
                     $response = $this->_get('/api/oms/pvt/orders/', $params);
