@@ -65,6 +65,7 @@ class VTEXConnector
     const TOO_MANY_REQUESTS_SLEEP_SEC = 30;
 
     const DEFAULT_SALES_WINDOW = 3;
+    const VTEX_PAGE_LIMIT = 30;
 
     private $_host;
     private $_appName;
@@ -218,11 +219,7 @@ class VTEXConnector
         while ($fromDate <= $toDate) {
             $timeStamp = strtotime($fromDate);
 
-            $dateFilter = "creationDate:[";
-            $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
-            $dateFilter .= "Z TO ";
-            $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp + $intervalSec);
-            $dateFilter .= "Z]";
+            $dateFilter = $this->getDateFilter($timeStamp, $intervalSec);
 
             $this->_logger->info("Dates " . $dateFilter);
 
@@ -235,19 +232,31 @@ class VTEXConnector
 
                 $response = $this->_get('/api/oms/pvt/orders/', $params);
 
-                if ($response->getStatusCode() === 200) {
-                    $response    = json_decode($response->getBody());
-                    $totalOrders = $response->paging->total;
+                $this->ensureIsStatusOk($response);
 
-                    foreach ($response->list as $vtexOrder) {
-                        yield $vtexOrder->orderId;
-                    }
-                } else {
-                    throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+                $response    = json_decode($response->getBody());
+                $totalOrders = $response->paging->total;
+
+                while ($response->paging->pages > self::VTEX_PAGE_LIMIT) {
+                    $this->_logger->info("Current page limit is " . self::VTEX_PAGE_LIMIT . ". Halving interval...");
+                    $intervalSec = floor($intervalSec / 2);
+                    $params['f_creationDate'] = $this->getDateFilter($timeStamp, $intervalSec);
+                    $this->_logger->info("Dates " . $params['f_creationDate']);
+                    $response = $this->_get('/api/oms/pvt/orders/', $params);
+                    $this->ensureIsStatusOK($response);
+                    $response    = json_decode($response->getBody());
+
+                    $totalOrders = $response->paging->total;
                 }
+
+                foreach ($response->list as $vtexOrder) {
+                    yield $vtexOrder->orderId;
+                }
+                
             } while (($params['page'] * $params['per_page']) < $totalOrders);
 
             $fromDate = date('c', $timeStamp + $intervalSec);
+            $intervalSec = 3600 * $salesWindow;
         }
     }
 
@@ -655,6 +664,33 @@ class VTEXConnector
         }
 
         return $leaves;
+    }
+
+    /**
+     * @param $timeStamp
+     * @param $intervalSec
+     * @return string
+     */
+    public function getDateFilter($timeStamp, $intervalSec): string
+    {
+        $dateFilter = "creationDate:[";
+        $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
+        $dateFilter .= "Z TO ";
+        $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp + $intervalSec);
+        $dateFilter .= "Z]";
+        return $dateFilter;
+    }
+
+    /**
+     * @param $response
+     * @return void
+     * @throws \Exception
+     */
+    public function ensureIsStatusOK($response): void
+    {
+        if ($response->getStatusCode() !== 200) {
+            throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+        }
     }
 
     /**
