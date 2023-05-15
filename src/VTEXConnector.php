@@ -232,9 +232,10 @@ class VTEXConnector
 
                 $response = $this->_get('/api/oms/pvt/orders/', $params);
 
-                if ($response->getStatusCode() === 200) {
-                    $response    = json_decode($response->getBody());
-                    $totalOrders = $response->paging->total;
+                $this->ensureIsStatusOk($response);
+
+                $response    = json_decode($response->getBody());
+                $totalOrders = $response->paging->total;
 
                 while ($response->paging->pages > self::VTEX_PAGE_LIMIT) {
                     $intervalSec = round($intervalSec / 2);
