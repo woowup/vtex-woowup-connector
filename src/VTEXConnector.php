@@ -25,6 +25,11 @@ class VTEXConnector
 
     const DEFAULT_BRANCH_NAME = 'VTEX';
 
+    const DEFAULT_FROM_DATE_DIFFERENCE = '-5 days';
+    const DEFAULT_TO_DATE_DIFFERENCE = '+1 days';
+
+    const VTEX_DATETIME_FORMAT = 'Y-m-d\TH:i:s.B\Z';
+
     const EMAIL_CONVERSATION_TRACKER_HOST = "http://conversationtracker.vtex.com.br";
 
     const PAYMENT_TYPES = [
@@ -190,11 +195,11 @@ class VTEXConnector
         );
 
         if ($fromDate === null) {
-            $fromDate = date('Y-m-d', strtotime('-5 days'));
+            $fromDate = date('Y-m-d', strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE));
         }
 
         if ($toDate === null) {
-            $toDate = date('Y-m-d', strtotime('+1 day'));
+            $toDate = date('Y-m-d', strtotime(self::DEFAULT_TO_DATE_DIFFERENCE));
         }
 
         $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
@@ -258,6 +263,35 @@ class VTEXConnector
             $fromDate = date('c', $timeStamp + $intervalSec);
             $intervalSec = 3600 * $salesWindow;
         }
+    }
+
+    public function countOrders($fromDate, $toDate)
+    {
+        if ($fromDate === null) {
+            $fromDate = date('Y-m-d', strtotime('-5 days'));
+        }
+
+        if ($toDate === null) {
+            $toDate = date('Y-m-d', strtotime('+1 day'));
+        }
+
+        $toDate      = date(self::VTEX_DATETIME_FORMAT, strtotime($toDate));
+        $fromDate    = date(self::VTEX_DATETIME_FORMAT, strtotime($fromDate));
+
+        $params = [
+            'f_status' => join(',', $this->_status),
+            'f_creationDate' => "creationDate:[{$fromDate} TO {$toDate}]",
+        ];
+
+        if ($this->_salesChannel) {
+            $params += ['f_salesChannel' => $this->_salesChannel];
+        }
+
+        $response = $this->_get('/api/oms/pvt/orders/', $params);
+        $this->ensureIsStatusOk($response);
+        $response = json_decode($response->getBody());
+
+        return $response->stats->stats->totalItems->Count;
     }
 
     /**
@@ -673,12 +707,9 @@ class VTEXConnector
      */
     public function getDateFilter($timeStamp, $intervalSec): string
     {
-        $dateFilter = "creationDate:[";
-        $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp);
-        $dateFilter .= "Z TO ";
-        $dateFilter .= date('Y-m-d\TH:i:s.B', $timeStamp + $intervalSec);
-        $dateFilter .= "Z]";
-        return $dateFilter;
+        $from = date(self::VTEX_DATETIME_FORMAT, $timeStamp);
+        $to = date(self::VTEX_DATETIME_FORMAT, $timeStamp + $intervalSec);
+        return "creationDate:[{$from} TO {$to}]";
     }
 
     /**

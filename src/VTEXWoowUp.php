@@ -5,7 +5,6 @@ namespace WoowUpConnectors;
 use WoowUpConnectors\Stages\VTEXProductTypeSolver;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionDownloader;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionMapper;
-use WoowUpConnectors\VTEXConnector;
 use WoowUpConnectors\WoowUpHandler;
 use WoowUpConnectors\Stages\DebugUploadStage;
 use WoowUpConnectors\Stages\Customers\VTEXCustomerDownloader;
@@ -143,6 +142,9 @@ class VTEXWoowUp
         }
         $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
+
+        $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate);
+        $this->logger->info("Found " . $countOrders . " orders to import");
 
         // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
         if (!$this->downloadStage) {
