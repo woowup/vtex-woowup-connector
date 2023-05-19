@@ -260,6 +260,35 @@ class VTEXConnector
         }
     }
 
+    public function countOrders($fromDate, $toDate)
+    {
+        if ($fromDate === null) {
+            $fromDate = date('Y-m-d', strtotime('-5 days'));
+        }
+
+        if ($toDate === null) {
+            $toDate = date('Y-m-d', strtotime('+1 day'));
+        }
+
+        $toDate      = date('Y-m-d\TH:i:s.B\Z', strtotime($toDate));
+        $fromDate    = date('Y-m-d\TH:i:s.B\Z', strtotime($fromDate));
+
+        $params = [
+            'f_status' => join(',', $this->_status),
+            'f_creationDate' => "creationDate:[{$fromDate} TO {$toDate}]",
+        ];
+
+        if ($this->_salesChannel) {
+            $params += ['f_salesChannel' => $this->_salesChannel];
+        }
+
+        $response = $this->_get('/api/oms/pvt/orders/', $params);
+        $this->ensureIsStatusOk($response);
+        $response = json_decode($response->getBody());
+
+        return $response->stats->stats->totalItems->Count;
+    }
+
     /**
      * Gets products from VTEX's API and maps them to WoowUp's API format
      * @return array   $products      products in WoowUp's API format
