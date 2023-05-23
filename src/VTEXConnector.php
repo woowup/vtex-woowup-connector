@@ -608,7 +608,7 @@ class VTEXConnector
         if ($response->getStatusCode() === 200) {
             return json_decode($response->getBody());
         } else {
-            throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            throw new VTEXRequestException($response->getReasonPhrase(), $response->getStatusCode());
         }
     }
 

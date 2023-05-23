@@ -36,14 +36,16 @@ class VTEXWoowUp
     protected $pipeline;
     protected $errorHandler;
     private $apiKey;
+    protected $notifier;
 
-    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null)
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null)
     {
         $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features);
         $this->logger        = $logger;
         $this->woowupClient  = $woowupClient;
         $this->errorHandler  = $errorHandler;
         $this->apiKey        = $vtexConfig['accountApiKey'];
+        $this->notifier = $notifier;
     }
 
     public function addPreMapStage($stage)
@@ -132,7 +134,7 @@ class VTEXWoowUp
      * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
      * @return [type]             [description]
      */
-    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null)
+    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null, $interruptBadCataloging = false)
     {
         $this->logger->info("Importing orders");
         if ($fromDate !== null) {
@@ -142,6 +144,8 @@ class VTEXWoowUp
         }
         $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
+        $this->logger->info("Debug mode? " . ($debug ? "Yes" : "No"));
+        $this->logger->info("Interrupt bad cataloging? " . ($interruptBadCataloging ? "Yes" : "No"));
 
         $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate);
         $this->logger->info("Found " . $countOrders . " orders to import");
@@ -152,7 +156,7 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger));
+            $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger, $this->notifier, $interruptBadCataloging, $countOrders));
         }
 
         if (!$this->ccInfoStage) {

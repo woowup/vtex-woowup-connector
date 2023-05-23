@@ -3,6 +3,8 @@
 namespace WoowUpConnectors\Stages\Orders;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Exceptions\BadCatalogingException;
+use WoowUpConnectors\Exceptions\VTEXRequestException;
 use WoowUpConnectors\Stages\VTEXProductTypeSolver;
 
 class VTEXWoowUpOrderMapper implements StageInterface
@@ -11,17 +13,26 @@ class VTEXWoowUpOrderMapper implements StageInterface
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER  = 'other';
     const INVALID_EMAILS         = ['ct.vtex.com.br', 'mercadolibre.com'];
+    const MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS = 5;
 
     protected $importing;
+    protected $notifier;
+    private $countOrders;
+    private $interruptBadCataloging;
+    private $badCatalogingProductsIds;
     protected $vtexConnector;
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
 
-    public function __construct($vtexConnector, $importing = false, $logger)
+    public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $interruptBadCataloging = false, $countOrders = 0)
     {
         $this->vtexConnector = $vtexConnector;
         $this->importing     = $importing;
         $this->logger        = $logger;
+        $this->notifier      = $notifier;
+        $this->interruptBadCataloging = $interruptBadCataloging;
+        $this->countOrders   = $countOrders;
+        $this->badCatalogingProductsIds = [];
         $this->onlyMapsParentProducts = !VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId());
 
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
@@ -419,8 +430,10 @@ class VTEXWoowUpOrderMapper implements StageInterface
             if ($product && isset($product->RefId) && !empty($product->RefId)) {
                 return $product->RefId;
             }
+            $this->addBadCatalogingProduct($productId);
+            $this->interruptBadCataloging($productId);
             return $productId;
-        } catch (\Exception $e) {
+        } catch (VTEXRequestException $e) {
             $this->logger->error("Could not obtain refId for product with productId: $productId, Message: {$e->getMessage()}");
             return $productId;
         }
@@ -435,4 +448,37 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         return (isset($vtexOrder->marketingData) && isset($vtexOrder->marketingData->coupon) && ($vtexOrder->marketingData->coupon));
     }
+
+    private function interruptBadCataloging($productId)
+    {
+        $this->logger->info("Bad cataloging for some products, not found RefId for productId: $productId");
+        if (count($this->badCatalogingProductsIds) == 1 && isset($this->notifier)) {
+            $this->notifier->notify($this->getAccountMessage() . "\nMessage: Bad cataloging for some products, not found RefId. ProductId: $productId");
+        }
+        if ($this->canBeInterrupted()) {
+            throw new BadCatalogingException("Mala catalogación para algunos productos, los siguientes productos no tienen RefId: ", $this->badCatalogingProductsIds);
+        }
+    }
+
+    private function canBeInterrupted(): bool
+    {
+        if ($this->countOrders == 0) {
+            return false;
+        }
+
+        $percentageBadCatalogingProducts = (count($this->badCatalogingProductsIds) / $this->countOrders) * 100;
+
+        return $this->interruptBadCataloging && ($percentageBadCatalogingProducts >= self::MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS);
+    }
+
+    private function addBadCatalogingProduct($productId): void
+    {
+        $this->badCatalogingProductsIds[] = $productId;
+    }
+
+    private function getAccountMessage(): string
+    {
+        return "Name: {$this->vtexConnector->getAppName()}\nAccount: {$this->vtexConnector->getAppId()}\n";
+    }
+
 }
