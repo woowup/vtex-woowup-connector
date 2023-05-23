@@ -453,7 +453,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $this->logger->info("Bad cataloging for some products, not found RefId for productId: $productId");
         if (count($this->badCatalogingProductsIds) == 1 && isset($this->notifier)) {
-            $this->notifier->notify($this->getAccountMessage() . "\nMessage: Bad cataloging for some products, not found RefId");
+            $this->notifier->notify($this->getAccountMessage() . "\nMessage: Bad cataloging for some products, not found RefId. ProductId: $productId");
         }
         if ($this->canBeInterrupted()) {
             throw new BadCatalogingException("Mala catalogación para algunos productos, los siguientes productos no tienen RefId: " . implode(', ', $this->badCatalogingProductsIds));
