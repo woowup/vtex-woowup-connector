@@ -30,12 +30,14 @@ class VTEXWoowUpOrderMapper implements StageInterface
         $this->importing     = $importing;
         $this->logger        = $logger;
         $this->notifier      = $notifier;
-        $this->interruptBadCataloging = VTEXConfig::interruptBadCataloging($this->vtexConnector->getAppId());
+        $this->interruptBadCataloging = $this->isNewAccount() || $this->isTestAccount();
         $this->countOrders   = $countOrders;
         $this->badCatalogingProductsIds = [];
         $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
 
+        $interruptLog = "Interrupting bad cataloging: " . ($this->interruptBadCataloging ? "Yes" : "No");
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
+        $this->logger->info($interruptLog);
         $this->logger->info($productsLog);
     }
 
@@ -481,6 +483,16 @@ class VTEXWoowUpOrderMapper implements StageInterface
     private function getAccountMessage(): string
     {
         return "Name: {$this->vtexConnector->getAppName()}\nAccount: {$this->vtexConnector->getAppId()}\n";
+    }
+
+    private function isNewAccount()
+    {
+        return $this->vtexConnector->getAppId() >= VTEXConfig::getStartingIdNewAccounts();
+    }
+
+    private function isTestAccount()
+    {
+        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getTestAccounts());
     }
 
 }

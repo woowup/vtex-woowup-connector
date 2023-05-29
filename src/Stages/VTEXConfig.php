@@ -10,9 +10,13 @@ class VTEXConfig
         return in_array(strval($appId), $accountsWithChildProducts);
     }
 
-    public static function interruptBadCataloging($appId) : bool
+    public static function getStartingIdNewAccounts()
     {
-        $newAccounts = explode(',', env('STARTING_NEW_ACCOUNTS_APP_IDS'));
-        return in_array(strval($appId), $newAccounts);
+        return env('STARTING_NEW_ACCOUNTS_APP_ID');
+    }
+
+    public static function getTestAccounts()
+    {
+        return explode(',', env('TEST_FEATURE_APP_IDS'));
     }
 }
