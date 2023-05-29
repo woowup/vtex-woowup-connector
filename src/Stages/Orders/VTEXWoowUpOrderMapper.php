@@ -5,7 +5,7 @@ namespace WoowUpConnectors\Stages\Orders;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\BadCatalogingException;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
-use WoowUpConnectors\Stages\VTEXProductTypeSolver;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXWoowUpOrderMapper implements StageInterface
 {
@@ -24,16 +24,16 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
 
-    public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $interruptBadCataloging = false, $countOrders = 0)
+    public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $countOrders = 0)
     {
         $this->vtexConnector = $vtexConnector;
         $this->importing     = $importing;
         $this->logger        = $logger;
         $this->notifier      = $notifier;
-        $this->interruptBadCataloging = $interruptBadCataloging;
+        $this->interruptBadCataloging = VTEXConfig::interruptBadCataloging($this->vtexConnector->getAppId());
         $this->countOrders   = $countOrders;
         $this->badCatalogingProductsIds = [];
-        $this->onlyMapsParentProducts = !VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId());
+        $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
 
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
         $this->logger->info($productsLog);
