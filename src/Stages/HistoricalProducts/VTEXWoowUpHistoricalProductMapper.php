@@ -3,7 +3,7 @@
 namespace WoowUpConnectors\Stages\HistoricalProducts;
 
 use League\Pipeline\StageInterface;
-use WoowUpConnectors\Stages\VTEXProductTypeSolver;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXWoowUpHistoricalProductMapper implements StageInterface
 {
@@ -15,7 +15,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
     {
         $this->vtexConnector = $vtexConnector;
         $this->stockEqualsZero = $stockEqualsZero;
-        $this->onlyMapsParentProducts = !VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId());
+        $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
 
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
         $this->vtexConnector->_logger->info($productsLog);

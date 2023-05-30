@@ -2,7 +2,7 @@
 
 namespace WoowUpConnectors;
 
-use WoowUpConnectors\Stages\VTEXProductTypeSolver;
+use WoowUpConnectors\Stages\VTEXConfig;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionDownloader;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionMapper;
 use WoowUpConnectors\WoowUpHandler;
@@ -134,7 +134,7 @@ class VTEXWoowUp
      * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
      * @return [type]             [description]
      */
-    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null, $interruptBadCataloging = false)
+    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null)
     {
         $this->logger->info("Importing orders");
         if ($fromDate !== null) {
@@ -145,7 +145,6 @@ class VTEXWoowUp
         $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
         $this->logger->info("Debug mode? " . ($debug ? "Yes" : "No"));
-        $this->logger->info("Interrupt bad cataloging? " . ($interruptBadCataloging ? "Yes" : "No"));
 
         $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate);
         $this->logger->info("Found " . $countOrders . " orders to import");
@@ -156,7 +155,7 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger, $this->notifier, $interruptBadCataloging, $countOrders));
+            $this->setMapStage(new VTEXWoowUpOrderMapper($this->vtexConnector, $importing, $this->logger, $this->notifier, $countOrders));
         }
 
         if (!$this->ccInfoStage) {
@@ -340,7 +339,7 @@ class VTEXWoowUp
         $this->logger->info("Importing products");
 
         if (!$this->mapStage) {
-            if (VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId())){
+            if (VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId())){
                 $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
             } else {
                 $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));

@@ -5,7 +5,7 @@ namespace WoowUpConnectors\Stages\Orders;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\BadCatalogingException;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
-use WoowUpConnectors\Stages\VTEXProductTypeSolver;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXWoowUpOrderMapper implements StageInterface
 {
@@ -24,18 +24,20 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
 
-    public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $interruptBadCataloging = false, $countOrders = 0)
+    public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $countOrders = 0)
     {
         $this->vtexConnector = $vtexConnector;
         $this->importing     = $importing;
         $this->logger        = $logger;
         $this->notifier      = $notifier;
-        $this->interruptBadCataloging = $interruptBadCataloging;
+        $this->interruptBadCataloging = $this->isNewAccount() || $this->isTestFeaturesAccount();
         $this->countOrders   = $countOrders;
         $this->badCatalogingProductsIds = [];
-        $this->onlyMapsParentProducts = !VTEXProductTypeSolver::mapsChildProducts($this->vtexConnector->getAppId());
+        $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
 
+        $interruptLog = "Interrupting bad cataloging: " . ($this->interruptBadCataloging ? "Yes" : "No");
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
+        $this->logger->info($interruptLog);
         $this->logger->info($productsLog);
     }
 
@@ -481,6 +483,16 @@ class VTEXWoowUpOrderMapper implements StageInterface
     private function getAccountMessage(): string
     {
         return "Name: {$this->vtexConnector->getAppName()}\nAccount: {$this->vtexConnector->getAppId()}\n";
+    }
+
+    private function isNewAccount()
+    {
+        return $this->vtexConnector->getAppId() >= VTEXConfig::getStartingIdNewAccounts();
+    }
+
+    private function isTestFeaturesAccount()
+    {
+        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getTestFeaturesAccounts());
     }
 
 }
