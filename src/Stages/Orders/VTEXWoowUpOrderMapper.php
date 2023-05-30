@@ -30,7 +30,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
         $this->importing     = $importing;
         $this->logger        = $logger;
         $this->notifier      = $notifier;
-        $this->interruptBadCataloging = $this->isNewAccount() || $this->isTestAccount();
+        $this->interruptBadCataloging = $this->isNewAccount() || $this->isTestFeaturesAccount();
         $this->countOrders   = $countOrders;
         $this->badCatalogingProductsIds = [];
         $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
@@ -490,9 +490,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
         return $this->vtexConnector->getAppId() >= VTEXConfig::getStartingIdNewAccounts();
     }
 
-    private function isTestAccount()
+    private function isTestFeaturesAccount()
     {
-        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getTestAccounts());
+        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getTestFeaturesAccounts());
     }
 
 }

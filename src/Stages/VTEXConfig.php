@@ -15,7 +15,7 @@ class VTEXConfig
         return env('STARTING_NEW_ACCOUNTS_APP_ID');
     }
 
-    public static function getTestAccounts()
+    public static function getTestFeaturesAccounts()
     {
         return explode(',', env('TEST_FEATURE_APP_IDS'));
     }
