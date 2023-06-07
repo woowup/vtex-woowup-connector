@@ -20,9 +20,11 @@ class VTEXConnector
 
     const PRODUCTS_SEARCH_OFFSET = 0;
     const PRODUCTS_SEARCH_LIMIT  = 25;
+    const UNMASK_RETRIES_LIMIT   = 5;
     const HISTORICAL_PRODUCTS_SEARCH_LIMIT =  500;
     const PRODUCTS_MAX_VALUE_FROM_PARAMETER = 2500;
 
+    const INVALID_VTEX_MAIL = 'ct.vtex.com.br';
     const DEFAULT_BRANCH_NAME = 'VTEX';
 
     const DEFAULT_FROM_DATE_DIFFERENCE = '-5 days';
@@ -617,11 +619,23 @@ class VTEXConnector
      * @param  [type] $alias [description]
      * @return [type]        [description]
      */
-    public function unmaskEmail($alias)
+    public function unmaskEmail($alias) {
+        $this->_logger->info("Converting $alias...");
+        return $this->_unmaskEmail($alias, 0);
+    }
+    /**
+     * Unmasks an email from a VTEX order's alias
+     * @param  [type] $alias [description]
+     * @return [type]        [description]
+     */
+    protected function _unmaskEmail($alias, $numberOfTries)
     {
+        if ($numberOfTries > self::UNMASK_RETRIES_LIMIT) {
+            $this->_logger->error("Error while unmasking email, max number of tries exceeded");
+            $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
+            return $alias;
+        }
         try {
-            $this->_logger->info("Converting $alias...");
-
             $this->_host = 'http://conversationtracker.vtex.com.br';
 
             $params = [
@@ -634,19 +648,25 @@ class VTEXConnector
             $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
 
             $response = json_decode($response->getBody(), true);
-            if (isset($response['email'])) {
-                $response = $response['email'];
-                $this->_logger->info("Success! Got " . $response);
-            } else {
-                $this->_logger->info("Could not convert alias :(");
-                $response = $alias;
+            if (!isset($response['email'])) {
+                return $this->_unmaskEmail($alias, $numberOfTries + 1);
             }
+
+            if (str_contains($response['email'], self::INVALID_VTEX_MAIL)) {
+                return $this->_unmaskEmail($response['email'], $numberOfTries + 1);
+            }
+
+            $response = $response['email'];
+            $this->_logger->info("Success! Got " . $response);
 
             return $response;
         } catch (\Exception $e) {
+            if ($numberOfTries < self::UNMASK_RETRIES_LIMIT) {
+                return $this->_unmaskEmail($alias, $numberOfTries + 1);
+            }
             $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
             $this->_logger->error("Error at request attempt " . $e->getMessage());
-            return null;
+            return $alias;
         }
     }
 
