@@ -662,7 +662,7 @@ class VTEXConnector
             }
 
             $response = $response['email'];
-            $this->_logger->info("Success! Got " . $response . " on attempt number: {$numberOfTries}");
+            $this->_logger->info("Success! Got " . $response . " on attempt number: " . ($numberOfTries + 1));
 
             return $response;
         } catch (\Exception $e) {
