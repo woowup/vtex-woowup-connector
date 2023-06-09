@@ -636,6 +636,8 @@ class VTEXConnector
             return $alias;
         }
         try {
+            $this->_logger->info("Attempting to convert {$alias}. Attempt number: " . ($numberOfTries + 1));
+
             $this->_host = 'http://conversationtracker.vtex.com.br';
 
             $params = [
