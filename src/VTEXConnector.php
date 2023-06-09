@@ -620,6 +620,10 @@ class VTEXConnector
      * @return [type]        [description]
      */
     public function unmaskEmail($alias) {
+        if (!str_contains($alias, self::INVALID_VTEX_MAIL)) {
+            return $alias;
+        }
+
         $this->_logger->info("Converting $alias...");
         return $this->_unmaskEmail($alias, 0);
     }
@@ -636,8 +640,6 @@ class VTEXConnector
             return $alias;
         }
         try {
-            $this->_logger->info("Attempting to convert {$alias}. Attempt number: " . ($numberOfTries + 1));
-
             $this->_host = 'http://conversationtracker.vtex.com.br';
 
             $params = [
@@ -650,8 +652,9 @@ class VTEXConnector
             $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
 
             $response = json_decode($response->getBody(), true);
+
             if (!isset($response['email'])) {
-                return $this->_unmaskEmail($alias, $numberOfTries + 1);
+                return $alias;
             }
 
             if (str_contains($response['email'], self::INVALID_VTEX_MAIL)) {
@@ -659,7 +662,7 @@ class VTEXConnector
             }
 
             $response = $response['email'];
-            $this->_logger->info("Success! Got " . $response);
+            $this->_logger->info("Success! Got " . $response . " on attempt number: {$numberOfTries}");
 
             return $response;
         } catch (\Exception $e) {
