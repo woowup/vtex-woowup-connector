@@ -621,6 +621,7 @@ class VTEXConnector
      */
     public function unmaskEmail($alias) {
         if (!str_contains($alias, self::INVALID_VTEX_MAIL)) {
+            $this->_logger->info("$alias is already valid, no need to unmask.");
             return $alias;
         }
 
