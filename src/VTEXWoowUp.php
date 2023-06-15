@@ -387,7 +387,7 @@ class VTEXWoowUp
     }
 
 
-    public function importSingleProduct($skuId, $productId, $cleanser, $debug = false, $feature = false)
+    public function importSingleProduct($skuId, $productId, $cleanser, $debug = false)
     {
         $this->logger->info("importing single product with sku $skuId");
 
