@@ -386,6 +386,38 @@ class VTEXWoowUp
         return true;
     }
 
+
+    public function importSingleProduct($skuId, $productId, $cleanser, $debug = false, $feature = false)
+    {
+        $this->logger->info("importing single product with sku $skuId");
+
+        if (!$this->mapStage) {
+            if (VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId())){
+                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+            } else {
+                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
+            }
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new WoowUpProductDebugger() :
+                    new WoowUpProductUploader($this->woowupClient, $this->logger, $cleanser)
+            );
+        }
+
+        $this->preparePipeline();
+
+        foreach ($this->vtexConnector->getSingleProduct($skuId, $productId) as $vtexBaseProduct) {
+            $this->run($vtexBaseProduct);
+        }
+
+        $this->resetStages();
+
+        return true;
+    }
+
     public function importHistoricalProducts($stockEqualsZero = false, $debug = false)
     {
         $updatedSkus = [];
