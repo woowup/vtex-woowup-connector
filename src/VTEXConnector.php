@@ -384,6 +384,25 @@ class VTEXConnector
         }
     }
 
+    public function getSingleProduct($skuId, $productId)
+    {
+        try {
+            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId" , 'fq' => "productId:$productId"]);
+
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+            }
+
+            $vtexProducts = json_decode($response->getBody());
+
+            foreach ($vtexProducts as $vtexBaseProduct) {
+                yield $vtexBaseProduct;
+            }
+        } catch (\Exception $e) {
+            $this->_logger->info("Product with SkuId: " . strval($skuId) . " not found");
+        }
+    }
+
     protected function getSkuIdList()
     {
         $skuIdList = [];
