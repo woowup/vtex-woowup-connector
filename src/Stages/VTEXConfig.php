@@ -19,4 +19,9 @@ class VTEXConfig
     {
         return explode(',', env('TEST_FEATURE_APP_IDS'));
     }
+
+    public static function getAvailableProductsAccounts()
+    {
+        return explode(',', env('SEARCH_FOR_AVAILABLE_PRODUCTS_ACCOUNTS'));
+    }
 }

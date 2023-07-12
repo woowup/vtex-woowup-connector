@@ -3,6 +3,7 @@
 namespace WoowUpConnectors\Stages\Products;
 
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 {
@@ -19,7 +20,10 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
         }
 
         $firstItem = $vtexBaseProduct->items[0];
-        $availableItem = $this->searchForAvailableProduct($vtexBaseProduct);
+        $availableItem = $firstItem;
+        if($this->searchesForAvailableProduct()) {
+            $availableItem = $this->searchForAvailableProduct($vtexBaseProduct);
+        }
 
         $product = [
             'brand'             => $vtexBaseProduct->brand,
@@ -82,5 +86,9 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
         }
 
         return $vtexBaseProduct->items[0];
+    }
+
+    private function searchesForAvailableProduct(): bool {
+        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getAvailableProductsAccounts());
     }
 }
