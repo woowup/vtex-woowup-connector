@@ -3,6 +3,7 @@
 namespace WoowUpConnectors\Stages\Products;
 
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductMapper;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 {
@@ -18,17 +19,21 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             return null;
         }
 
-        $baseProduct = $vtexBaseProduct->items[0];
+        $firstItem = $vtexBaseProduct->items[0];
+        $availableItem = $firstItem;
+        if($this->searchesForAvailableProduct()) {
+            $availableItem = $this->searchForAvailableProduct($vtexBaseProduct);
+        }
 
         $product = [
             'brand'             => $vtexBaseProduct->brand,
             'description'       => $vtexBaseProduct->description,
             'url'               => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->vtexConnector->getStoreUrl(), $vtexBaseProduct->link),
             'release_date'      => $vtexBaseProduct->releaseDate,
-            'image_url'         => $this->getImageUrl($baseProduct),
-            'thumbnail_url'     => $this->getImageUrl($baseProduct),
-            'price'             => $this->getItemListPrice($baseProduct),
-            'offer_price'       => $this->getItemPrice($baseProduct),
+            'image_url'         => $this->getImageUrl($firstItem),
+            'thumbnail_url'     => $this->getImageUrl($firstItem),
+            'price'             => $this->getItemListPrice($availableItem),
+            'offer_price'       => $this->getItemPrice($availableItem),
             'stock'             => $this->getStock($vtexBaseProduct),
             'available'         => true
         ];
@@ -38,8 +43,8 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             $product['sku']  = $vtexBaseProduct->productReference;
         } else {
             $product['base_name'] = $vtexBaseProduct->productName;
-            $product['name']      = $baseProduct->name;
-            $product['sku']       = $baseProduct->referenceId[0]->Value;
+            $product['name']      = $firstItem->name;
+            $product['sku']       = $firstItem->referenceId[0]->Value;
         }
 
         $categories = $this->vtexConnector->getCategories();
@@ -70,5 +75,20 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             $stock += $this->getItemStock($vtexProduct);
         }
         return $stock;
+    }
+
+    private function searchForAvailableProduct($vtexBaseProduct) {
+        foreach ($vtexBaseProduct->items as $vtexItem) {
+            $available = $vtexItem->sellers[0]->commertialOffer->IsAvailable ?? false;
+            if ($available) {
+                return $vtexItem;
+            }
+        }
+
+        return $vtexBaseProduct->items[0];
+    }
+
+    private function searchesForAvailableProduct(): bool {
+        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getAvailableProductsAccounts());
     }
 }
