@@ -55,7 +55,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     protected function getItemPrice($vtexItem)
     {
         $itemPrize = $vtexItem->sellers[0]->commertialOffer->Price ?? null;
-        if ($itemPrize) {
+        if (isset($itemPrize)) {
             return $itemPrize;
         } else {
             $prices = $this->vtexConnector->searchItemPrices($vtexItem->itemId);
@@ -71,7 +71,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     protected function getItemListPrice($vtexItem)
     {
         $itemPrize = $vtexItem->sellers[0]->commertialOffer->ListPrice ?? null;
-        if ($itemPrize) {
+        if (isset($itemPrize)) {
             return $itemPrize;
         } else {
             $prices = $this->vtexConnector->searchItemPrices($vtexItem->itemId);
