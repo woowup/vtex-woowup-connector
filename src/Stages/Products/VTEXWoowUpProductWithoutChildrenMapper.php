@@ -20,12 +20,9 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
         }
 
         $firstItem = $vtexBaseProduct->items[0];
-        $availableItem = $firstItem;
-        if($this->searchesForAvailableProduct()) {
-            $availableItem = $this->searchForAvailableProduct($vtexBaseProduct);
-            if ($availableItem != $firstItem && isset($availableItem->referenceId[0]->Value)) {
-                $this->vtexConnector->_logger->info("Base product with SKU: $vtexBaseProduct->productReference took price from item with SKU: {$availableItem->referenceId[0]->Value}");
-            }
+        $availableItem = $this->searchForAvailableProduct($vtexBaseProduct);
+        if ($availableItem != $firstItem && isset($availableItem->referenceId[0]->Value)) {
+            $this->vtexConnector->_logger->info("Base product with SKU: $vtexBaseProduct->productReference took price from item with SKU: {$availableItem->referenceId[0]->Value}");
         }
 
         $product = [
@@ -89,9 +86,5 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
         }
 
         return $vtexBaseProduct->items[0];
-    }
-
-    private function searchesForAvailableProduct(): bool {
-        return in_array($this->vtexConnector->getAppId(), VTEXConfig::getAvailableProductsAccounts());
     }
 }
