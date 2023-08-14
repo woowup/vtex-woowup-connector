@@ -142,6 +142,9 @@ class VTEXWoowUp
         $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
 
+        $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate, $daysFrom);
+        $this->logger->info("Found " . $countOrders . " orders to import");
+
         // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXOrderDownloader($this->vtexConnector));
