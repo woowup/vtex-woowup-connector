@@ -271,7 +271,7 @@ class VTEXConnector
 
     public function countOrders($fromDate, $toDate, $daysFrom)
     {
-        $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
+        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
         $toDate      = date(self::VTEX_DATETIME_FORMAT, strtotime($toDate));
         $fromDate    = date(self::VTEX_DATETIME_FORMAT, strtotime($fromDate));
 
