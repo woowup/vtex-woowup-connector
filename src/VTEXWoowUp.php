@@ -134,20 +134,13 @@ class VTEXWoowUp
      * @param  boolean $importing approve orders at execution time (for time-triggered campaigns)
      * @return [type]             [description]
      */
-    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null)
+    public function importOrders($fromDate = null, $toDate = null, $updating = false, $importing = false, $debug = false, $hours = null, $daysFrom = null)
     {
         $this->logger->info("Importing orders");
-        if ($fromDate !== null) {
-            $this->logger->info("Starting date: " . $fromDate);
-        } else {
-            $this->logger->info("No starting date specified");
-        }
+
+        $this->logger->info("Debug mode? " . ($debug ? "Yes" : "No"));
         $this->logger->info("Updating duplicated orders? " . ($updating ? "Yes" : "No"));
         $this->logger->info("Approving orders at excecution time? " . ($importing ? "No" : "Yes"));
-        $this->logger->info("Debug mode? " . ($debug ? "Yes" : "No"));
-
-        $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate);
-        $this->logger->info("Found " . $countOrders . " orders to import");
 
         // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
         if (!$this->downloadStage) {
@@ -170,7 +163,7 @@ class VTEXWoowUp
         }
 
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getOrders($fromDate, $toDate, $importing, $hours) as $orderId) {
+        foreach ($this->vtexConnector->getOrders($fromDate, $toDate, $importing, $hours, $daysFrom) as $orderId) {
             $this->logger->info("Processing order $orderId");
             $this->run($orderId);
         }

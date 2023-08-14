@@ -187,22 +187,20 @@ class VTEXConnector
      * @param  string  $fromDate      oldest order date format [TO-DO poner formato válido]
      * @return array   $orders         orders in WoowUp's API format
      */
-    public function getOrders($fromDate = null, $toDate = null, $importing = false, $hours = null)
+    public function getOrders($fromDate = null, $toDate = null, $importing = false, $hours = null, $daysFrom = null)
     {
+        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $daysFrom, $toDate);
+        $this->_logger->info("Searching for orders between dates: $fromDate - $toDate");
+
+        $countOrders = $this->countOrders($fromDate, $toDate);
+        $this->_logger->info("Found " . $countOrders . " orders to import");
+
         $params = array(
             'f_status' => join(',', $this->_status),
             'page'     => self::ORDERS_QUERY_PARAMS['page'],
             'per_page' => self::ORDERS_QUERY_PARAMS['per_page'],
             'orderBy'  => self::ORDERS_QUERY_PARAMS['orderBy'],
         );
-
-        if ($fromDate === null) {
-            $fromDate = date('Y-m-d', strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE));
-        }
-
-        if ($toDate === null) {
-            $toDate = date('Y-m-d', strtotime(self::DEFAULT_TO_DATE_DIFFERENCE));
-        }
 
         $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
 
@@ -269,14 +267,6 @@ class VTEXConnector
 
     public function countOrders($fromDate, $toDate)
     {
-        if ($fromDate === null) {
-            $fromDate = date('Y-m-d', strtotime('-5 days'));
-        }
-
-        if ($toDate === null) {
-            $toDate = date('Y-m-d', strtotime('+1 day'));
-        }
-
         $toDate      = date(self::VTEX_DATETIME_FORMAT, strtotime($toDate));
         $fromDate    = date(self::VTEX_DATETIME_FORMAT, strtotime($fromDate));
 
@@ -767,6 +757,25 @@ class VTEXConnector
         if ($response->getStatusCode() !== 200) {
             throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
         }
+    }
+
+    public function getFromAndToDates($fromDate, $daysFrom, $toDate): array
+    {
+        if ($fromDate !== null) {
+            $this->_logger->info("Starting date: " . $fromDate);
+        } else {
+            $this->_logger->info("No starting date specified");
+        }
+
+        if ($fromDate === null) {
+            $dateFromTime = $daysFrom ? strtotime("-$daysFrom days") : strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE);
+            $fromDate = date('Y-m-d', $dateFromTime);
+        }
+
+        if ($toDate === null) {
+            $toDate = date('Y-m-d', strtotime(self::DEFAULT_TO_DATE_DIFFERENCE));
+        }
+        return [$fromDate, $toDate];
     }
 
     /**
