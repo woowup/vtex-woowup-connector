@@ -195,7 +195,7 @@ class VTEXConnector
             $this->_logger->info("No starting date specified");
         }
 
-        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $daysFrom, $toDate);
+        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
 
         $this->_logger->info("Searching for orders between dates: $fromDate - $toDate");
 
@@ -271,7 +271,7 @@ class VTEXConnector
 
     public function countOrders($fromDate, $toDate, $daysFrom)
     {
-        $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
+        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
         $toDate      = date(self::VTEX_DATETIME_FORMAT, strtotime($toDate));
         $fromDate    = date(self::VTEX_DATETIME_FORMAT, strtotime($fromDate));
 
@@ -764,7 +764,7 @@ class VTEXConnector
         }
     }
 
-    public function getFromAndToDates($fromDate, $daysFrom, $toDate): array
+    public function getFromAndToDates($fromDate, $toDate, $daysFrom): array
     {
         if ($fromDate === null) {
             $dateFromTime = $daysFrom ? strtotime("-$daysFrom days") : strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE);
