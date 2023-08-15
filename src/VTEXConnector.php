@@ -195,7 +195,7 @@ class VTEXConnector
             $this->_logger->info("No starting date specified");
         }
 
-        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $daysFrom, $toDate);
+        list($fromDate, $toDate) = $this->getFromAndToDates($fromDate, $toDate, $daysFrom);
 
         $this->_logger->info("Searching for orders between dates: $fromDate - $toDate");
 
