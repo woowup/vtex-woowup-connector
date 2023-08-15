@@ -764,7 +764,7 @@ class VTEXConnector
         }
     }
 
-    public function getFromAndToDates($fromDate, $daysFrom, $toDate): array
+    public function getFromAndToDates($fromDate, $toDate, $daysFrom): array
     {
         if ($fromDate === null) {
             $dateFromTime = $daysFrom ? strtotime("-$daysFrom days") : strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE);
