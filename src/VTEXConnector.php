@@ -216,14 +216,7 @@ class VTEXConnector
             $params += ['f_salesChannel' => $this->_salesChannel];
         }
 
-        if ($this->_syncCategories === true) {
-            $this->_logger->info("Getting categories...");
-            $categoryTree      = $this->getCategoryTree();
-            $this->_categories = $this->flatternCategoryTree($categoryTree);
-            $this->_logger->info("Success!");
-        } else {
-            $this->_categories = [];
-        }
+        $this->populateCategories();
 
         while ($fromDate <= $toDate) {
             $timeStamp = strtotime($fromDate);
@@ -302,13 +295,7 @@ class VTEXConnector
 
         $categoryTree = $this->getCategoryTree();
 
-        if ($this->_syncCategories) {
-            $this->_logger->info("Getting categories... ");
-            $this->_categories = $this->flatternCategoryTree($categoryTree);
-            $this->_logger->info("Success!");
-        } else {
-            $this->_categories = [];
-        }
+        $this->populateCategories();
 
         $totalProductsRetrieved = 0;
 
@@ -382,15 +369,8 @@ class VTEXConnector
     public function getSingleProduct($skuId, $productId)
     {
         try {
-            $categoryTree = $this->getCategoryTree();
+            $this->populateCategories();
 
-            if ($this->_syncCategories) {
-                $this->_logger->info("Getting categories... ");
-                $this->_categories = $this->flatternCategoryTree($categoryTree);
-                $this->_logger->info("Success!");
-            } else {
-                $this->_categories = [];
-            }
             $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId" , 'fq' => "productId:$productId"]);
 
             if ($response->getStatusCode() !== 200) {
@@ -851,6 +831,18 @@ class VTEXConnector
         }
 
         return $categories;
+    }
+
+    public function populateCategories(): void
+    {
+        if ($this->_syncCategories === true) {
+            $this->_logger->info("Getting categories...");
+            $categoryTree = $this->getCategoryTree();
+            $this->_categories = $this->flatternCategoryTree($categoryTree);
+            $this->_logger->info("Success!");
+        } else {
+            $this->_categories = [];
+        }
     }
 
     /**
