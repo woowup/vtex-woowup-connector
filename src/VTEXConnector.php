@@ -382,6 +382,15 @@ class VTEXConnector
     public function getSingleProduct($skuId, $productId)
     {
         try {
+            $categoryTree = $this->getCategoryTree();
+
+            if ($this->_syncCategories) {
+                $this->_logger->info("Getting categories... ");
+                $this->_categories = $this->flatternCategoryTree($categoryTree);
+                $this->_logger->info("Success!");
+            } else {
+                $this->_categories = [];
+            }
             $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId" , 'fq' => "productId:$productId"]);
 
             if ($response->getStatusCode() !== 200) {
