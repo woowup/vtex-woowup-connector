@@ -409,8 +409,6 @@ class VTEXWoowUp
             $this->run($vtexBaseProduct);
         }
 
-        $this->resetStages();
-
         return true;
     }
 
