@@ -143,4 +143,8 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         }
     }
 
+    protected function stripHTML($string) {
+        return strip_tags($string);
+    }
+
 }
