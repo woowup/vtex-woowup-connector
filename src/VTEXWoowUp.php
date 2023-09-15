@@ -405,7 +405,7 @@ class VTEXWoowUp
 
         $this->preparePipeline();
 
-        foreach ([$this->vtexConnector->getSingleProduct($skuId)] as $vtexBaseProduct) {
+        foreach ([$this->vtexConnector->getSingleProduct($skuId, $productId)] as $vtexBaseProduct) {
             $this->run($vtexBaseProduct);
         }
         return true;
