@@ -65,22 +65,12 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
         }
 
-        $product['stock'] = 0;
-        if (!$this->stockEqualsZero) {
-            $product['stock'] = $this->vtexConnector->searchItemStock($vtexProduct->Id);
-        }
 
-        if ($product['stock'] == 0) {
-            $product['available'] = false;
-        }
+        $stock  = $this->setStock($product, $vtexProduct);
+        $prices = $this->setPrice($product, $vtexProduct);
 
-        $prices = $this->vtexConnector->searchItemPrices($vtexProduct->Id);
-        if (isset($prices) && !empty($prices)) {
-            $product['price'] = (float) $prices->listPrice;
-            $product['offer_price'] = (float) $prices->basePrice;
-        } else {
-            $product['price'] = 0;
-            $product['offer_price'] = 0;
+        if (!$this->validateStockAndPrice($stock, $prices)) {
+            return null;
         }
 
         if (
@@ -181,5 +171,49 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         }
 
         return $customAttributes;
+    }
+
+    public function setStock(array &$product, object $vtexProduct)
+    {
+        $product['stock'] = 0;
+        $stock = 0;
+        if (!$this->stockEqualsZero) {
+            $stock = $this->vtexConnector->searchItemStock($vtexProduct->Id);
+            $product['stock'] = $stock;
+        }
+
+        if ($product['stock'] == 0) {
+            $product['available'] = false;
+        }
+
+        if ($product['stock'] === false) {
+            unset($product['stock']);
+        }
+
+        return $stock;
+    }
+
+    public function setPrice(array &$product, object $vtexProduct)
+    {
+        $prices = $this->vtexConnector->searchItemPrices($vtexProduct->Id);
+
+        if (isset($prices) && !empty($prices)) {
+            $product['price'] = (float)$prices->listPrice;
+            $product['offer_price'] = (float)$prices->basePrice;
+        } else {
+            unset($product['price']);
+            unset($product['offer_price']);
+        }
+        return $prices;
+    }
+
+    /**
+     * @param int $stock
+     * @param $prices
+     * @return bool
+     */
+    public function validateStockAndPrice($stock, $prices): bool
+    {
+        return !($stock === false && !is_object($prices));
     }
 }
