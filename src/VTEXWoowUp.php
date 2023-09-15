@@ -405,10 +405,32 @@ class VTEXWoowUp
 
         $this->preparePipeline();
 
-        foreach ($this->vtexConnector->getSingleProduct($skuId, $productId) as $vtexBaseProduct) {
+        foreach ([$this->vtexConnector->getSingleProduct($skuId)] as $vtexBaseProduct) {
             $this->run($vtexBaseProduct);
         }
+        return true;
+    }
 
+
+    public function importSingleHistoricalProduct($skuId, $cleanser, $debug = false)
+    {
+        $this->logger->info("importing single product with sku $skuId");
+
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpHistoricalProductMapper($this->vtexConnector, false));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                ($debug) ?
+                    new DebugUploadStage() :
+                    new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger, $cleanser)
+            );
+        }
+
+        $this->preparePipeline();
+
+        $this->run($this->vtexConnector->getHistoricalSingleProduct($skuId));
         return true;
     }
 
