@@ -48,7 +48,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'description'       => $vtexProduct->ProductDescription,
             'url'               => $this->vtexConnector->getStoreUrl() . $vtexProduct->DetailUrl,
             'release_date'      => $vtexProduct->ReleaseDate,
-            'available'         => true
+            'available'         => $vtexProduct->ProductIsVisible
         ];
 
         if (isset($vtexProduct->Images[0]->ImageUrl)) {
@@ -64,7 +64,6 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['name']      = $vtexProduct->NameComplete;
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
         }
-
 
         $stock  = $this->setStock($product, $vtexProduct);
         $prices = $this->setPrice($product, $vtexProduct);
@@ -180,10 +179,6 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         if (!$this->stockEqualsZero) {
             $stock = $this->vtexConnector->searchItemStock($vtexProduct->Id);
             $product['stock'] = $stock;
-        }
-
-        if ($product['stock'] == 0) {
-            $product['available'] = false;
         }
 
         if ($product['stock'] === false) {
