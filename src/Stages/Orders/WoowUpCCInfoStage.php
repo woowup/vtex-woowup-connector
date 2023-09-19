@@ -61,6 +61,7 @@ class WoowUpCCInfoStage implements StageInterface
                 continue;
             }
 
+            $result = json_decode($result)->payload;
             $result->type && $payment['type'] = $result->type;
             $result->scheme && $payment['brand'] = $result->scheme;
             $result->bank && $result->bank->name && $payment['bank'] = $result->bank->name;
