@@ -69,6 +69,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         $prices = $this->setPrice($product, $vtexProduct);
 
         if (!$this->validateStockAndPrice($stock, $prices)) {
+            $this->vtexConnector->_logger->info("Skipping product: impossible to get price and stock.");
             return null;
         }
 
