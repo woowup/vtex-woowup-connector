@@ -65,9 +65,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
         }
 
-        if (!$this->getStockAndPrice($product, $vtexProduct)) {
-            return null;
-        }
+        $this->getStockAndPrice($product, $vtexProduct);
 
         if (
             $this->vtexConnector->getSyncCategories() &&
@@ -173,7 +171,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
     protected function getStockAndPrice(&$product, $vtexProduct) {
         $product['stock'] = 0;
         if (!$this->stockEqualsZero) {
-            $product['stock'] = $this->vtexConnector->searchItemStock($vtexProduct->Id);
+            $product['stock'] = (int) $this->vtexConnector->searchItemStock($vtexProduct->Id);
         }
 
         if ($product['stock'] == 0) {
