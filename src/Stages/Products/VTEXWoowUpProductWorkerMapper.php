@@ -24,13 +24,13 @@ class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
         
             if (!$this->hasStockOrPrice($stock, $prices)) {
             $this->vtexConnector->_logger->info("Skipping product: impossible to get price and stock.");
-            $this->notifier->notify_once($this->getAccountMessage() . "\nMessage: Impossible to get price and stock. Example skipped product: $vtexProduct->Id", $this->vtexConnector->getAppId(), self::WEBHOOK_SLACK_CHANNEL);
+            $this->notifier->notifyOneByFlag($this->getAccountMessage() . "\nMessage: Impossible to get price and stock. Example skipped product: $vtexProduct->Id", $this->vtexConnector->getAppId(), self::WEBHOOK_SLACK_CHANNEL);
             return false;
         }
         
         if ($stock === false || !is_object($prices)) {
             $this->vtexConnector->_logger->info("Could not get price or stock");
-            $this->notifier->notify_once($this->getAccountMessage() . "\nMessage: Account cannot access stock or price. Example product: " . $vtexProduct->Id, $this->vtexConnector->getAppId(), self::WEBHOOK_SLACK_CHANNEL);
+            $this->notifier->notifyOneByFlag($this->getAccountMessage() . "\nMessage: Account cannot access stock or price. Example product: " . $vtexProduct->Id, $this->vtexConnector->getAppId(), self::WEBHOOK_SLACK_CHANNEL);
         }
         
         return true;
