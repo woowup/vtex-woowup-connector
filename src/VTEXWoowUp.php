@@ -15,6 +15,7 @@ use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
 use WoowUpConnectors\Stages\Orders\WoowUpCCInfoStage;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithoutChildrenMapper;
+use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWorkerMapper;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
@@ -417,7 +418,7 @@ class VTEXWoowUp
         $this->logger->info("importing single product with sku $skuId");
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpHistoricalProductMapper($this->vtexConnector, false));
+            $this->setMapStage(new VTEXWoowUpProductWorkerMapper($this->vtexConnector, false, $this->notifier));
         }
 
         if (!$this->uploadStage) {

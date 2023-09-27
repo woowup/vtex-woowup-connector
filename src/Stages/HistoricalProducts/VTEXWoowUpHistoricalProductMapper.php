@@ -48,7 +48,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             'description'       => $vtexProduct->ProductDescription,
             'url'               => $this->vtexConnector->getStoreUrl() . $vtexProduct->DetailUrl,
             'release_date'      => $vtexProduct->ReleaseDate,
-            'available'         => $vtexProduct->ProductIsVisible
+            'available'         => $this->getAvailable($vtexProduct)
         ];
 
         if (isset($vtexProduct->Images[0]->ImageUrl)) {
@@ -65,11 +65,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
             $product['sku']       = $vtexProduct->AlternateIds->RefId;
         }
 
-        $stock  = $this->setStock($product, $vtexProduct);
-        $prices = $this->setPrice($product, $vtexProduct);
-
-        if (!$this->validateStockAndPrice($stock, $prices)) {
-            $this->vtexConnector->_logger->info("Skipping product: impossible to get price and stock.");
+        if (!$this->getStockAndPrice($product, $vtexProduct)) {
             return null;
         }
 
@@ -173,43 +169,33 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         return $customAttributes;
     }
 
-    public function setStock(array &$product, object $vtexProduct)
-    {
+
+    protected function getStockAndPrice(&$product, $vtexProduct) {
         $product['stock'] = 0;
-        $stock = 0;
         if (!$this->stockEqualsZero) {
-            $stock = $this->vtexConnector->searchItemStock($vtexProduct->Id);
-            $product['stock'] = $stock;
+            $product['stock'] = $this->vtexConnector->searchItemStock($vtexProduct->Id);
         }
 
-        if ($product['stock'] === false) {
-            unset($product['stock']);
+        if ($product['stock'] == 0) {
+            $product['available'] = false;
         }
 
-        return $stock;
-    }
-
-    public function setPrice(array &$product, object $vtexProduct)
-    {
         $prices = $this->vtexConnector->searchItemPrices($vtexProduct->Id);
-
         if (isset($prices) && !empty($prices)) {
-            $product['price'] = (float)$prices->listPrice;
-            $product['offer_price'] = (float)$prices->basePrice;
+            $product['price'] = (float) $prices->listPrice;
+            $product['offer_price'] = (float) $prices->basePrice;
         } else {
-            unset($product['price']);
-            unset($product['offer_price']);
+            $product['price'] = 0;
+            $product['offer_price'] = 0;
         }
-        return $prices;
     }
 
-    /**
-     * @param int $stock
-     * @param $prices
-     * @return bool
-     */
-    public function validateStockAndPrice($stock, $prices): bool
+    protected function getAvailable($vtexProduct) {
+        return true;
+    }
+
+    protected function getAccountMessage(): string
     {
-        return !($stock === false && !is_object($prices));
+        return "Name: {$this->vtexConnector->getAppName()}\nAccount: {$this->vtexConnector->getAppId()}\n";
     }
 }
