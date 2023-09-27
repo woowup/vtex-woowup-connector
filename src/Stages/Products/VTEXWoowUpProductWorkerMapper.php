@@ -1,10 +1,7 @@
 <?php
 
 namespace WoowUpConnectors\Stages\Products;
-use Connectors\Support\SlackNotificator;
 use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
-use WoowUpConnectors\Stages\VTEXConfig;
-use function GuzzleHttp\Psr7\parse_request;
 
 class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
 {
