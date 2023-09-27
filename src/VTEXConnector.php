@@ -353,15 +353,7 @@ class VTEXConnector
         $skuIdList = $this->getSkuIdList();
 
         foreach ($skuIdList as $skuId) {
-            $this->_logger->info("Getting data from product with SkuId: " . strval($skuId));
-
-            $response = $this->_get('/api/catalog_system/pvt/sku/stockkeepingunitbyid/' . strval($skuId));
-            if ($response->getStatusCode() !== 200) {
-                throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
-            }
-
-            $vtexProduct = json_decode($response->getBody());
-
+            $vtexProduct = $this->getHistoricalSingleProduct($skuId);
             yield $vtexProduct;
         }
     }
@@ -427,7 +419,7 @@ class VTEXConnector
             return $stock;
         } catch (\Exception $e) {
             $this->_logger->info("Not found stock for item Id $vtexItemId - Message: {$e->getMessage()}");
-            return 0;
+            return false;
         }
     }
 
@@ -764,6 +756,19 @@ class VTEXConnector
             $toDate = date('Y-m-d', strtotime(self::DEFAULT_TO_DATE_DIFFERENCE));
         }
         return [$fromDate, $toDate];
+    }
+
+    public function getHistoricalSingleProduct($skuId)
+    {
+        $this->_logger->info("Getting data from product with SkuId: " . strval($skuId));
+
+        $response = $this->_get('/api/catalog_system/pvt/sku/stockkeepingunitbyid/' . strval($skuId));
+        if ($response->getStatusCode() !== 200) {
+            throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+        }
+
+        $vtexProduct = json_decode($response->getBody());
+        return $vtexProduct;
     }
 
     /**
