@@ -684,26 +684,6 @@ class VTEXConnector
         }
     }
 
-    public function getProductInfo($vtexItemId)
-    {
-        $this->_logger->info("Searching data for item Id " . $vtexItemId . "... ");
-        try {
-            $body = [
-                "items" => array([
-                    "id" => $vtexItemId,
-                    "quantity" => 1,
-                    "seller" => 1
-                ]),
-            ];
-            $response = $this->_post("/api/fulfillment/pvt/orderForms/simulation", [], [], $body);
-            $this->_logger->info("Success!");
-            return json_decode($response->getBody());
-        } catch (\Exception $e) {
-            $this->_logger->info("Could not get price and stock info for item Id $vtexItemId - Message: {$e->getMessage()}");
-            return 0;
-        }
-    }
-
     /**
      * Checks minimum parameters to get connector running
      * @param  [type] $vtexConfig [description]
@@ -900,7 +880,7 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _request($method, $endpoint, $queryParams = [], $headers = [], $json = [])
+    protected function _request($method, $endpoint, $queryParams = [], $headers = [])
     {
         $attempts = 0;
         while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
@@ -912,8 +892,7 @@ class VTEXConnector
                             'X-VTEX-API-AppKey'   => $this->_appKey,
                             'X-VTEX-API-AppToken' => $this->_appToken,
                         ] + $headers,
-                    'query' => $queryParams,
-                    'json' => $json
+                    'query' => $queryParams
                 ]);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
@@ -964,10 +943,5 @@ class VTEXConnector
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
         return $this->_request('GET', $endpoint, $queryParams, $headers);
-    }
-
-    protected function _post($endpoint, $queryParams = [], $headers = [], $json = [])
-    {
-        return $this->_request('POST', $endpoint, $queryParams, $headers, $json);
     }
 }
