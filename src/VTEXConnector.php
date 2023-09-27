@@ -887,11 +887,11 @@ class VTEXConnector
             try {
                 $response = $this->_httpClient->request($method, $this->_host . $endpoint, [
                     'headers' => [
-                            'Content-Type'        => 'application/json',
-                            'Accept'              => 'application/vnd.vtex.ds.v10+json',
-                            'X-VTEX-API-AppKey'   => $this->_appKey,
-                            'X-VTEX-API-AppToken' => $this->_appToken,
-                        ] + $headers,
+                        'Content-Type'        => 'application/json',
+                        'Accept'              => 'application/vnd.vtex.ds.v10+json',
+                        'X-VTEX-API-AppKey'   => $this->_appKey,
+                        'X-VTEX-API-AppToken' => $this->_appToken,
+                    ] + $headers,
                     'query' => $queryParams
                 ]);
 
