@@ -33,8 +33,12 @@ class WoowUpHistoricalProductUploader implements StageInterface
         $lastCategoryId = $lastCategory['id'];
 
         $this->logger->info("[Product] Sku: {$product['sku']} , EncodedSku : {$encode}");
-        $this->logger->info("[Product] Price: {$product['price']} , Offer_Price : {$product['offer_price']}");
-        $this->logger->info("[Product] Stock: {$product['stock']}");
+
+        $price = $product['price'] ?? 'no_price';
+        $offer_price = $product['offer_price'] ?? 'no_offer_price';
+        $stock = $product['stock'] ?? 'stock';
+        $this->logger->info("[Product] Price: {$price} , Offer_Price : {$offer_price}");
+        $this->logger->info("[Product] Stock: {$stock}");
         $this->logger->info("[Product] Release_Date: {$product['release_date']}");
         $this->logger->info("[Product] LastCategoryId: {$lastCategoryId}");
         $this->logger->info("---------");
