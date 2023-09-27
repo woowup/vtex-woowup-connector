@@ -892,7 +892,7 @@ class VTEXConnector
                         'X-VTEX-API-AppKey'   => $this->_appKey,
                         'X-VTEX-API-AppToken' => $this->_appToken,
                     ] + $headers,
-                    'query' => $queryParams
+                    'query' => $queryParams,
                 ]);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
