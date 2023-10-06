@@ -85,7 +85,7 @@ class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
 
     protected function getAvailable($vtexProduct)
     {
-        return $vtexProduct->ProductIsVisible;
+        return $vtexProduct->IsActive;
     }
 
     private function noPriceAndStock(?array $product)
