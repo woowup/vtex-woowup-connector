@@ -977,3 +977,27 @@ class VTEXConnector
     {
         return $this->getHistoricalSingleProduct($sku);
     }
+
+    public function getProductById($productId)
+    {
+        try {
+            $response = $this->_request('GET', 'http://' . $this->vtexConnector->getAppName() . ".vtexcommercestable.com.br/api/catalog_system/pub/products/search?fq=productId:{$productId}");
+
+            if ($response->getStatusCode() != 200) {
+                if ($response->getStatusCode() == 404) {
+                    return null;
+                } else {
+                    throw new \Exception($response->getBody());
+                }
+            }
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            return null;
+        }
+
+        $response = json_decode($response->getBody());
+
+        return isset($response[0]) ? $response[0] : null;
+    }
+
+
+}

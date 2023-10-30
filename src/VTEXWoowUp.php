@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors;
 
+use WoowUpConnectors\Stages\Carts\VTEXAbandonedCartMapper;
 use WoowUpConnectors\Stages\VTEXConfig;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionDownloader;
 use WoowUpConnectors\Stages\Subscriptions\VTEXSubscriptionMapper;
@@ -390,9 +391,9 @@ class VTEXWoowUp
 
         if (!$this->mapStage) {
             if (VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId())){
-                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector, true));
             } else {
-                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
+                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector, true));
             }
         }
 
@@ -472,5 +473,23 @@ class VTEXWoowUp
     public function getConnector()
     {
         return $this->vtexConnector;
+    }
+
+    public function buildAbandonedCart($vtexCart) {
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXAbandonedCartMapper($this->vtexConnector));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                new DebugUploadStage()
+//                ($debug) ?
+//                    new DebugUploadStage() :
+//                    new WoowU($this->woowupClient, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+        $this->run($vtexCart);
     }
 }
