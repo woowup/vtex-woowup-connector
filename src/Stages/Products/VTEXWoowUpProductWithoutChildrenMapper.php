@@ -38,6 +38,8 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             'available'         => true
         ];
 
+        $product = $this->getItemInfo($baseProduct, $product);
+
         if ($this->onlyMapsParentProducts) {
             $product['name'] = $vtexBaseProduct->productName;
             $product['sku']  = $vtexBaseProduct->productReference;

@@ -36,16 +36,17 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
             }
             $sku = $vtexProduct->referenceId[0]->Value;
 
-            yield $baseProduct + [
-                'image_url'     => $this->getImageUrl($vtexProduct),
-                'thumbnail_url' => $this->getImageUrl($vtexProduct),
-                'sku'           => $sku,
-                'name'          => $vtexProduct->name,
-                'price'         => $this->getItemListPrice($vtexProduct),
-                'offer_price'   => $this->getItemPrice($vtexProduct),
-                'stock'         => $this->getItemStock($vtexProduct),
-                'available'     => true,
-            ];
+            $baseProduct = $baseProduct + [
+                    'image_url'     => $this->getImageUrl($vtexProduct),
+                    'thumbnail_url' => $this->getImageUrl($vtexProduct),
+                    'sku'           => $sku,
+                    'name'          => $vtexProduct->name,
+                    'available'     => true,
+                ];
+
+            $baseProduct = $this->getItemInfo($vtexProduct, $baseProduct);
+
+            yield $baseProduct;
         }
     }
 
