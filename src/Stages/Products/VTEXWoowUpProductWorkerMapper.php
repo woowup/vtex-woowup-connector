@@ -6,7 +6,8 @@ use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper
 class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
 {
     const WEBHOOK_SLACK_CHANNEL = 'vtex-product-webhook-alerts';
-    
+    const DIVIDE_FACTOR = 100;
+
     public function __construct($vtexConnector, $stockEqualsZero, $notifier = null)
     {
         parent::__construct($vtexConnector, $stockEqualsZero);
@@ -25,9 +26,17 @@ class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
 
     protected function getStockAndPrice(&$product, $vtexProduct)
     {
-        $stock  = $this->setStock($product, $vtexProduct);
-        $prices = $this->setPrice($product, $vtexProduct);
-        
+        $info = $this->vtexConnector->getProductInfo($vtexProduct->Id);
+        // $stock  = $this->setStock($product, $vtexProduct);
+        // $prices = $this->setPrice($product, $vtexProduct);
+        $stock = $info->logisticsInfo[0]->stockBalance ?? null;
+        $price = $info->items[0]->listPrice ?? null;
+        $offer_price = $info->items[0]->price ?? null;
+
+        $product['stock'] = $stock;
+        $product['price'] = $price / self::DIVIDE_FACTOR;
+        $product['offer_price'] = $offer_price / self::DIVIDE_FACTOR;
+
         if (!$this->hasStockOrPrice($stock, $prices)) {
             $this->vtexConnector->_logger->info("Skipping product: impossible to get price and stock.");
             $this->notifier->notifyOnceByFlag($this->getAccountMessage() . "\nMessage: Impossible to get price and stock. Example skipped product: $vtexProduct->Id", $this->vtexConnector->getAppId(), self::WEBHOOK_SLACK_CHANNEL);
@@ -83,11 +92,11 @@ class VTEXWoowUpProductWorkerMapper extends VTEXWoowUpHistoricalProductMapper
         return $prices;
     }
 
-    protected function getAvailable($vtexProduct)
-    {
-        return $vtexProduct->IsActive;
-    }
-
+//    protected function getAvailable($vtexProduct)
+//    {
+//        return $vtexProduct->ProductIsVisible;
+//    }
+//
     private function noPriceAndStock(?array $product)
     {
         return !(isset($product['stock']) || isset($product['price']) || isset($product['offer_price']));
