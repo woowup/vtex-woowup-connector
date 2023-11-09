@@ -41,6 +41,7 @@ class WoowUpOrderUploader implements StageInterface
 
         try {
             $this->woowupClient->purchases->create($order);
+            $this->logger->info("[Purchase] {$order['invoice_number']} Size: " . strlen(json_encode($order)) . " bytes");
             $this->logger->info("[Purchase] {$order['invoice_number']} Created Successfully");
             $this->woowupStats['created']++;
             return true;
