@@ -112,6 +112,7 @@ class WoowUpOrderUploader implements StageInterface
         try {
             if ($this->updateOrder) {
                 $this->woowupClient->purchases->update($order);
+                $this->logger->info("[Purchase] {$invoiceNumber} Size: " . strlen(json_encode($order)) . " bytes");
                 $this->logger->info("[Purchase] $invoiceNumber Updated Successfully");
                 $this->woowupStats['updated']++;
             }
