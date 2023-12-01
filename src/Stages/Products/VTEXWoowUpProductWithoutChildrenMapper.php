@@ -32,13 +32,16 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             'release_date'      => $vtexBaseProduct->releaseDate,
             'image_url'         => $this->getImageUrl($firstItem),
             'thumbnail_url'     => $this->getImageUrl($firstItem),
-            'price'             => $this->getItemListPrice($availableItem),
-            'offer_price'       => $this->getItemPrice($availableItem),
             'stock'             => $this->getStock($vtexBaseProduct),
             'available'         => true
         ];
 
-        $product = $this->getItemInfo($baseProduct, $product);
+        $product = $this->getItemInfo($availableItem, $product);
+
+        if($this->skipEmptyPrices($product)) {
+            $this->vtexConnector->_logger->info("Skipping product with empty prices: $sku");
+            return null;
+        }
 
         if ($this->onlyMapsParentProducts) {
             $product['name'] = $vtexBaseProduct->productName;
@@ -60,6 +63,8 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 
         yield $product;
     }
+
+
 
     protected function hasSku($vtexBaseProduct)
     {
@@ -89,4 +94,25 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 
         return $vtexBaseProduct->items[0];
     }
+
+    protected function getItemInfo($vtexProduct, $baseProduct)
+    {
+        if ($this->stockAndPriceRealTime) {
+            $info = $this->vtexConnector->getStockAndPriceFromSimulation($vtexProduct->itemId);
+
+            $price = $info->items[0]->listPrice ?? null;
+            $offer_price = $info->items[0]->sellingPrice ?? null;
+
+            $baseProduct['price'] = $price / self::DIVIDE_FACTOR;
+            $baseProduct['offer_price'] = $offer_price / self::DIVIDE_FACTOR;
+        } else {
+            $baseProduct['price']         = $this->getItemListPrice($vtexProduct);
+            $baseProduct['offer_price']   = $this->getItemPrice($vtexProduct);
+        }
+
+        return $baseProduct;
+    }
+
+
+
 }

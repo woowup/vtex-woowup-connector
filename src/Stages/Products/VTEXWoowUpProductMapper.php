@@ -3,21 +3,24 @@
 namespace WoowUpConnectors\Stages\Products;
 
 use League\Pipeline\StageInterface;
-use WoowUpConnectors\Stages\StageMapperForParentProducts;
+use WoowUpConnectors\Stages\VTEXConfig;
 
-abstract class VTEXWoowUpProductMapper extends StageMapperForParentProducts
+abstract class VTEXWoowUpProductMapper implements StageInterface
 {
     protected $vtexConnector;
     protected $onlyMapsParentProducts;
-    protected $stockAndPrizeRealTime;
     protected const PRODUCT_WITHOUT_LIST_PRICE = 0;
+    protected $stockAndPriceRealTime;
     protected const DIVIDE_FACTOR = 100;
 
-    public function __construct($vtexConnector, $stockAndPrizeRealTime = false)
+    public function __construct($vtexConnector, $stockAndPriceRealTime = false)
     {
         $this->vtexConnector = $vtexConnector;
-        $this->stockAndPrizeRealTime = $stockAndPrizeRealTime;
-        $this->onlyMapsParentProducts = $this->mapsParentProducts($this->vtexConnector->getAppId(), $this->vtexConnector->getFeatures());
+        $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
+        $this->stockAndPriceRealTime = $stockAndPriceRealTime;
+
+        $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
+        $this->vtexConnector->_logger->info($productsLog);
 
         return $this;
     }
@@ -78,26 +81,6 @@ abstract class VTEXWoowUpProductMapper extends StageMapperForParentProducts
             }
             return self::PRODUCT_WITHOUT_LIST_PRICE;
         }
-    }
-
-    protected function getItemInfo($vtexProduct, $baseProduct) {
-        if ($this->stockAndPrizeRealTime) {
-            $info = $this->vtexConnector->getStockAndPriceFromSimulation($vtexProduct->itemId);
-
-            $stock = $info->logisticsInfo[0]->stockBalance ?? null;
-            $price = $info->items[0]->listPrice ?? null;
-            $offer_price = $info->items[0]->price ?? null;
-
-            $baseProduct['stock'] = $stock;
-            $baseProduct['price'] = $price / self::DIVIDE_FACTOR;
-            $baseProduct['offer_price'] = $offer_price / self::DIVIDE_FACTOR;
-        } else {
-            $baseProduct['price']         = $this->getItemListPrice($vtexProduct);
-            $baseProduct['offer_price']   = $this->getItemPrice($vtexProduct);
-            $baseProduct['stock']         = $this->getItemStock($vtexProduct);
-        }
-
-        return $baseProduct;
     }
 
     protected function hasItemComplementName($vtexItem)
@@ -163,6 +146,11 @@ abstract class VTEXWoowUpProductMapper extends StageMapperForParentProducts
 
     protected function stripHTML($text) {
         return strip_tags($text);
+    }
+
+    protected function skipEmptyPrices($product)
+    {
+        return empty($product['price']) || empty($product['offer_price']);
     }
 
 }

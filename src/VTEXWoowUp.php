@@ -390,9 +390,9 @@ class VTEXWoowUp
 
         if (!$this->mapStage) {
             if (VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId())){
-                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector));
+                $this->setMapStage(new VTEXWoowUpProductWithChildrenMapper($this->vtexConnector, true));
             } else {
-                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector));
+                $this->setMapStage(new VTEXWoowUpProductWithoutChildrenMapper($this->vtexConnector, true));
             }
         }
 

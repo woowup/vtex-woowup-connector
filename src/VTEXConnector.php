@@ -623,6 +623,7 @@ class VTEXConnector
         $this->_logger->info("Converting $alias...");
         return $this->_unmaskEmail($alias, 0);
     }
+
     /**
      * Unmasks an email from a VTEX order's alias
      * @param  [type] $alias [description]
@@ -695,7 +696,7 @@ class VTEXConnector
                     "seller" => 1
                 ]),
             ];
-            $response = $this->_post("/api/fulfillment/pvt/orderForms/simulation", [], [], $body);
+            $response = $this->_post("/api/checkout/pvt/orderForms/simulation", [], [], $body);
             $this->_logger->info("Success!");
             return json_decode($response->getBody());
         } catch (\Exception $e) {
@@ -971,9 +972,4 @@ class VTEXConnector
         return $this->_request('POST', $endpoint, $queryParams, $headers, $json);
     }
 
-
-
-    public function getProductInfoBySKU($sku)
-    {
-        return $this->getHistoricalSingleProduct($sku);
-    }
+}
