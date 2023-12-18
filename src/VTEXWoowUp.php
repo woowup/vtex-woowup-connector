@@ -15,7 +15,6 @@ use WoowUpConnectors\Stages\Orders\VTEXWoowUpOrderMapper;
 use WoowUpConnectors\Stages\Orders\WoowUpCCInfoStage;
 use WoowUpConnectors\Stages\Orders\WoowUpOrderUploader;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithoutChildrenMapper;
-use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWorkerMapper;
 use WoowUpConnectors\Stages\Products\VTEXWoowUpProductWithChildrenMapper;
 use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
@@ -409,29 +408,6 @@ class VTEXWoowUp
         foreach ($this->vtexConnector->getSingleProduct($skuId, $productId) as $vtexBaseProduct) {
             $this->run($vtexBaseProduct);
         }
-        return true;
-    }
-
-
-    public function importSingleHistoricalProduct($skuId, $cleanser, $debug = false)
-    {
-        $this->logger->info("importing single product with sku $skuId");
-
-        if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpProductWorkerMapper($this->vtexConnector, false, $this->notifier));
-        }
-
-        if (!$this->uploadStage) {
-            $this->setUploadStage(
-                ($debug) ?
-                    new DebugUploadStage() :
-                    new WoowUpHistoricalProductUploader($this->woowupClient, $this->logger, $cleanser)
-            );
-        }
-
-        $this->preparePipeline();
-
-        $this->run($this->vtexConnector->getHistoricalSingleProduct($skuId));
         return true;
     }
 
