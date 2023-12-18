@@ -38,11 +38,6 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 
         $product = $this->getItemInfo($availableItem, $product);
 
-        if($this->skipEmptyPrices($product)) {
-            $this->vtexConnector->_logger->info("Skipping product with empty prices: $sku");
-            return null;
-        }
-
         if ($this->onlyMapsParentProducts) {
             $product['name'] = $vtexBaseProduct->productName;
             $product['sku']  = $vtexBaseProduct->productReference;
@@ -50,6 +45,12 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             $product['base_name'] = $vtexBaseProduct->productName;
             $product['name']      = $firstItem->name;
             $product['sku']       = $firstItem->referenceId[0]->Value;
+        }
+
+        if($this->skipEmptyPrices($product)) {
+            $sku = $product['sku'];
+            $this->vtexConnector->_logger->info("Skipping product with empty prices: $sku");
+            return null;
         }
 
         $categories = $this->vtexConnector->getCategories();
