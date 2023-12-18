@@ -2,6 +2,7 @@
 
 namespace WoowUpConnectors\Stages\Products;
 
+use League\Pipeline\StageInterface;
 
 class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
 {
