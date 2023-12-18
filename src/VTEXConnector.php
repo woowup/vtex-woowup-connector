@@ -363,7 +363,7 @@ class VTEXConnector
         try {
             $this->populateCategories();
 
-            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId" , 'fq' => "productId:$productId"]);
+            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId"]);
 
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());

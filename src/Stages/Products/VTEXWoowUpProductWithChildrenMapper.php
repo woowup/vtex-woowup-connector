@@ -35,13 +35,11 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
             }
             $sku = $vtexProduct->referenceId[0]->Value;
 
-            $baseProduct = $baseProduct + [
-                    'image_url'     => $this->getImageUrl($vtexProduct),
-                    'thumbnail_url' => $this->getImageUrl($vtexProduct),
-                    'sku'           => $sku,
-                    'name'          => $vtexProduct->name,
-                    'available'     => true,
-                ];
+            $baseProduct['image_url'] = $this->getImageUrl($vtexProduct);
+            $baseProduct['thumbnail_url'] = $this->getImageUrl($vtexProduct);
+            $baseProduct['name'] = $vtexProduct->name;
+            $baseProduct['sku'] = $sku;
+            $baseProduct['available'] = true;
 
             $baseProduct = $this->getItemInfo($vtexProduct, $baseProduct);
 
@@ -65,7 +63,7 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
 
             $stock = $info->logisticsInfo[0]->stockBalance ?? null;
             $price = $info->items[0]->listPrice ?? null;
-            $offer_price = $info->items[0]->sellingPrice ?? null;
+            $offer_price = $info->items[0]->price ?? null;
 
             $baseProduct['stock'] = $stock;
             $baseProduct['price'] = $price / self::DIVIDE_FACTOR;
