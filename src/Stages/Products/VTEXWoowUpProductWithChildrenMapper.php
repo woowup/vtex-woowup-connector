@@ -44,7 +44,7 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
 
             $baseProduct = $this->getItemInfo($vtexProduct, $baseProduct);
 
-            if($this->skipEmptyPrices($baseProduct)) {
+            if($this->isEmptyPrice($baseProduct)) {
                 $this->vtexConnector->_logger->info("Skipping product with empty prices: $sku");
                 continue;
             }

@@ -150,7 +150,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         return strip_tags($text);
     }
 
-    protected function skipEmptyPrices($product)
+    protected function isEmptyPrice($product)
     {
         return empty($product['price']) || empty($product['offer_price']);
     }
