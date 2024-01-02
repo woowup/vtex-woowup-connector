@@ -363,7 +363,7 @@ class VTEXConnector
         try {
             $this->populateCategories();
 
-            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId" , 'fq' => "productId:$productId"]);
+            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId"]);
 
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -623,6 +623,7 @@ class VTEXConnector
         $this->_logger->info("Converting $alias...");
         return $this->_unmaskEmail($alias, 0);
     }
+
     /**
      * Unmasks an email from a VTEX order's alias
      * @param  [type] $alias [description]
@@ -680,6 +681,26 @@ class VTEXConnector
             return json_decode($response->getBody());
         } catch (\Exception $e) {
             $this->_logger->info("Not found price for item Id $vtexItemId - Message: {$e->getMessage()}");
+            return 0;
+        }
+    }
+
+    public function getStockAndPriceFromSimulation($vtexItemId)
+    {
+        $this->_logger->info("Searching data for item Id " . $vtexItemId . "... ");
+        try {
+            $body = [
+                "items" => array([
+                    "id" => $vtexItemId,
+                    "quantity" => 1,
+                    "seller" => 1
+                ]),
+            ];
+            $response = $this->_post("/api/checkout/pvt/orderForms/simulation", [], [], $body);
+            $this->_logger->info("Success!");
+            return json_decode($response->getBody());
+        } catch (\Exception $e) {
+            $this->_logger->info("Could not get price and stock info for item Id $vtexItemId - Message: {$e->getMessage()}");
             return 0;
         }
     }
@@ -880,19 +901,20 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    protected function _request($method, $endpoint, $queryParams = [], $headers = [])
+    protected function _request($method, $endpoint, $queryParams = [], $headers = [], $json = [])
     {
         $attempts = 0;
         while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
             try {
                 $response = $this->_httpClient->request($method, $this->_host . $endpoint, [
                     'headers' => [
-                        'Content-Type'        => 'application/json',
-                        'Accept'              => 'application/vnd.vtex.ds.v10+json',
-                        'X-VTEX-API-AppKey'   => $this->_appKey,
-                        'X-VTEX-API-AppToken' => $this->_appToken,
-                    ] + $headers,
+                            'Content-Type'        => 'application/json',
+                            'Accept'              => 'application/vnd.vtex.ds.v10+json',
+                            'X-VTEX-API-AppKey'   => $this->_appKey,
+                            'X-VTEX-API-AppToken' => $this->_appToken,
+                        ] + $headers,
                     'query' => $queryParams,
+                    'json' => $json
                 ]);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
@@ -944,4 +966,10 @@ class VTEXConnector
     {
         return $this->_request('GET', $endpoint, $queryParams, $headers);
     }
+
+    protected function _post($endpoint, $queryParams = [], $headers = [], $json = [])
+    {
+        return $this->_request('POST', $endpoint, $queryParams, $headers, $json);
+    }
+
 }
