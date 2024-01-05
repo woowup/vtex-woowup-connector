@@ -64,7 +64,7 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
 
             $stock = $info->logisticsInfo[0]->stockBalance ?? null;
             $price = $info->items[0]->listPrice ?? null;
-            $offer_price = $info->items[0]->price ?? null;
+            $offer_price = $info->items[0]->sellingPrice ?? null;
 
             $baseProduct['stock'] = $stock;
             $baseProduct['price'] = $price / self::DIVIDE_FACTOR;
