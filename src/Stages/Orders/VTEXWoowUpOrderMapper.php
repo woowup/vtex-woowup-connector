@@ -108,7 +108,19 @@ class VTEXWoowUpOrderMapper implements StageInterface
             }
         }
 
-        return $order;
+        return $this->cleanArray($order);
+    }
+
+    private function cleanArray($array)
+    {
+        foreach ($array as $key => $value) {
+            if (gettype($value) === 'array') {
+                $array[$key] = $this->cleanArray($value);
+            } elseif ($value === null || $value === '') {
+                unset($array[$key]);
+            }
+        }
+        return $array;
     }
 
     /**
