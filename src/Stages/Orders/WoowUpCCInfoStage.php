@@ -54,13 +54,13 @@ class WoowUpCCInfoStage implements StageInterface
             try {
                 $result = $this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']);
             } catch (\Exception $e) {
-                if ($e->hasResponse() && (in_array($e->getResponse()->getStatusCode(), self::$httpCodes))) {
+                if (method_exists($e, 'hasResponse') && $e->hasResponse() && (in_array($e->getResponse()->getStatusCode(), self::$httpCodes))) {
                     $this->logger->info("Bank info not found");
                     $this->logger->info("Error: Code ". $e->getResponse()->getStatusCode(). ", Message: ".$e->getMessage());
                 } else {
-                    $this->errorHandler->captureException($e);
                     $this->logger->info(" Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
                 }
+                continue;
             }
 
             if (!isset($result)) {
