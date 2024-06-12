@@ -9,7 +9,13 @@ class WoowUpCCInfoStage implements StageInterface
     const HTTP_NOT_FOUND = 404;
     const HTTP_SERVICE_UNAVAILABLE = 503;
 
-    protected static $httpCodes = [self::HTTP_NOT_FOUND, self::HTTP_SERVICE_UNAVAILABLE];
+    const HTTP_BAD_GATEWAY = 502;
+
+    protected static $httpCodes = [
+        self::HTTP_NOT_FOUND,
+        self::HTTP_SERVICE_UNAVAILABLE,
+        self::HTTP_BAD_GATEWAY
+    ];
 
     protected $woowupClient;
     protected $logger;
