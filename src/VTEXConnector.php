@@ -699,8 +699,11 @@ class VTEXConnector
             $response = $this->_post("/api/checkout/pvt/orderForms/simulation", [], [], $body);
             $this->_logger->info("Success!");
             return json_decode($response->getBody());
-        } catch (\Exception $e) {
+        } catch (VTEXRequestException $e) {
             $this->_logger->info("Could not get price and stock info for item Id $vtexItemId - Message: {$e->getMessage()}");
+            throw $e;
+        } catch (\Exception $e) {
+            $this->_logger->info("Internal error Could not get price and stock info for item Id $vtexItemId - Message: {$e->getMessage()}");
             return 0;
         }
     }
