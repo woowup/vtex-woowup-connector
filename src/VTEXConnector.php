@@ -107,16 +107,47 @@ class VTEXConnector
             $this->_appName        = $vtexConfig['appName'];
             $this->_status         = isset($vtexConfig['status']) && $vtexConfig['status'] ? $vtexConfig['status'] : [self::STATUS_INVOICED];
             $this->_storeUrl       = $vtexConfig['storeUrl'];
-            $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $vtexConfig['salesChannel'] : null;
             $this->_branchName     = isset($vtexConfig['branchName']) ? $vtexConfig['branchName'] : self::DEFAULT_BRANCH_NAME;
             $this->_allowedSellers = isset($vtexConfig['allowedSellers']) ? $vtexConfig['allowedSellers'] : null;
             $this->_syncCategories = isset($vtexConfig['syncCategories']) ? $vtexConfig['syncCategories'] : null;
             $this->_httpClient     = $httpClient;
             $this->features        = $features;
+            $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $this->getSalesChannel($vtexConfig['salesChannel']) : null;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Retrieves the name of the sales channel based on the given configuration value.
+     *
+     * If the configuration value is a valid integer, it fetches the list of sales channels
+     * from the VTEX API and returns the corresponding name. If no match is found, it returns
+     * the original configuration value.
+     *
+     * @param mixed $salesChannelFromConfig The sales channel ID or name from the configuration.
+     *
+     * @return string The sales channel name or the original configuration value if no match is found.
+     */
+    private function getSalesChannel($salesChannelFromConfig)
+    {
+        if (filter_var($salesChannelFromConfig, FILTER_VALIDATE_INT) !== false) {
+            try {
+                $response = $this->_get('/api/catalog_system/pvt/saleschannel/list');
+                $body = json_decode($response->getBody(), true);
+
+                // Search for the matching sales channel by ID
+                foreach ($body as $salesChannel) {
+                    if ($salesChannel['Id'] == $salesChannelFromConfig) {
+                        return $salesChannel['Name'];
+                    }
+                }
+            } catch (\Exception $e) {
+                $this->_logger->error("VTEX Error retrieving sales channel list: " . $e->getMessage());
+            }
+        }
+        return $salesChannelFromConfig;
     }
 
     /**
