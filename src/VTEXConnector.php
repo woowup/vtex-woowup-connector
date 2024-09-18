@@ -123,40 +123,31 @@ class VTEXConnector
      * Retrieves the name of the sales channel based on the given configuration value.
      *
      * If the configuration value is a valid integer, it fetches the list of sales channels
-     * from the API and returns the corresponding name. If no match is found, it returns
+     * from the VTEX API and returns the corresponding name. If no match is found, it returns
      * the original configuration value.
      *
      * @param mixed $salesChannelFromConfig The sales channel ID or name from the configuration.
      *
      * @return string The sales channel name or the original configuration value if no match is found.
-     * @throws \RuntimeException If an error occurs while fetching the sales channel list from the API.
      */
     private function getSalesChannel($salesChannelFromConfig)
     {
-        // Validate if the provided configuration is an integer
         if (filter_var($salesChannelFromConfig, FILTER_VALIDATE_INT) !== false) {
             try {
-                // Fetch the list of sales channels from the API
                 $response = $this->_get('/api/catalog_system/pvt/saleschannel/list');
                 $body = json_decode($response->getBody(), true);
 
-                // Cast the config value to an integer
-                $salesChannelId = (int) $salesChannelFromConfig;
-
                 // Search for the matching sales channel by ID
                 foreach ($body as $salesChannel) {
-                    if ($salesChannel['Id'] === $salesChannelId) {
+                    if ($salesChannel['Id'] == $salesChannelFromConfig) {
                         return $salesChannel['Name'];
                     }
                 }
             } catch (\Exception $e) {
                 $this->_logger->error("VTEX Error retrieving sales channel list: " . $e->getMessage());
-                return null;
             }
         }
-
-        // Return the original configuration value if it's not an integer or no match is found
-        return (string) $salesChannelFromConfig;
+        return $salesChannelFromConfig;
     }
 
     /**
