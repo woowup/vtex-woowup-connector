@@ -84,9 +84,12 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                         $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
                         $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
                         $customer['sms_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                        $customer['whatsapp_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['whatsapp_enabled_reason'] = self::DISABLED_REASON_OTHER;
                     } else {
                         $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
                         $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
+                        $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
                     }
                 }
             }
