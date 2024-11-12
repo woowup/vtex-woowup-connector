@@ -22,11 +22,11 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     private $apiKey;
     private $_httpClient;
 
-    public function __construct($vtexConnector, $logger,$apiKey)
+    public function __construct($vtexConnector, $logger,$apiKey, $ignoreOptIn = false)
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger = $logger;
-        $this->getNewsletterOptIn = true;
+        $this->getNewsletterOptIn = !$ignoreOptIn;
         $this->apiKey = $apiKey;
         $this->_httpClient = new Client();
         return $this;

@@ -38,7 +38,9 @@ class VTEXWoowUp
     private $apiKey;
     protected $notifier;
 
-    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null)
+    protected $ignoreOptIn;
+
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null, $ignoreOptIn = false)
     {
         $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features);
         $this->logger        = $logger;
@@ -46,6 +48,7 @@ class VTEXWoowUp
         $this->errorHandler  = $errorHandler;
         $this->apiKey        = $vtexConfig['accountApiKey'];
         $this->notifier = $notifier;
+        $this->ignoreOptIn = $ignoreOptIn;
     }
 
     public function addPreMapStage($stage)
@@ -226,13 +229,14 @@ class VTEXWoowUp
         }
 
         $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
+        $this->logger->info("Ignore OptIn: $this->ignoreOptIn");
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey ));
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey, $this->ignoreOptIn));
         }
 
         if (!$this->uploadStage) {
