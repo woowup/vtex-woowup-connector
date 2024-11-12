@@ -229,6 +229,7 @@ class VTEXWoowUp
         }
 
         $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
+        $this->logger->info("Ignore OptIn: $this->ignoreOptIn");
 
         if (!$this->downloadStage) {
             $this->setDownloadStage(new VTEXCustomerDownloader($this->vtexConnector, $dataEntity));
