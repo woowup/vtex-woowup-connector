@@ -67,9 +67,18 @@ class WoowUpCCInfoStage implements StageInterface
                 continue;
             }
 
-            $result->type && $payment['type'] = $result->type;
-            $result->scheme && $payment['brand'] = $result->scheme;
-            $result->bank && $result->bank->name && $payment['bank'] = $result->bank->name;
+            if (empty($payment['type']) && $result->type) {
+                $payment['type'] = $result->type;
+            }
+
+            if (empty($payment['brand']) && $result->scheme) {
+                $payment['brand'] = $result->scheme;
+            }
+
+            if (empty($payment['bank']) && $result->bank && $result->bank->name) {
+                $payment['bank'] = $result->bank->name;
+            }
+
             $info[] = $payment;
         }
 

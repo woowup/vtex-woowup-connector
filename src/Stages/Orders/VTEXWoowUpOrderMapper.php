@@ -289,22 +289,22 @@ class VTEXWoowUpOrderMapper implements StageInterface
             'total' => (float) $vtexPayment->value / 100,
         ];
 
-        switch ($vtexPayment->paymentSystemName) {
-            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_MP']:
-                // TO-DO Implementar conector de mercado pago
-                break;
-            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_TP']:
-                // TO-DO Implementar conector de todo pago
-                break;
-            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_CASH']:
-            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_COUPON']:
-            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_COMMERCE']:
-                break;
-            default:
-                if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
-                    $payment['first_digits'] = trim($vtexPayment->firstDigits);
-                }
-                break;
+        if (in_array($vtexPayment->paymentSystemName, $this->vtexConnector::PAYMENT_SERVICES)) {
+            $this->logger->info($vtexPayment->paymentSystemName . " is not a cc payment service");
+            return $payment;
+        }
+
+
+
+        if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
+            $payment['first_digits'] = trim($vtexPayment->firstDigits);
+        }
+
+        $bank = $vtexPayment->connectorResponses->issuer ?? null;
+
+        if (!$bank) {
+            $this->logger->info("Payment bank not available");
+            return $payment;
         }
 
         if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
@@ -313,6 +313,8 @@ class VTEXWoowUpOrderMapper implements StageInterface
         if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
             $payment['installments'] = (int) $vtexPayment->installments;
         }
+
+        $payment['bank'] = $bank;
 
         return $payment;
     }
