@@ -268,7 +268,11 @@ class VTEXWoowUpOrderMapper implements StageInterface
             foreach ($vtexOrder->paymentData->transactions as $vtexTransaction) {
                 if (isset($vtexTransaction->payments) && (count($vtexTransaction->payments) > 0)) {
                     foreach ($vtexTransaction->payments as $vtexPayment) {
-                        $payment[] = $this->buildOrderPayment($vtexPayment);
+                        if ($this->isTestFeaturesAccount()) {
+                            $payment[] = $this->buildOrderPaymentWithBank($vtexPayment);
+                        } else {
+                            $payment[] = $this->buildOrderPayment($vtexPayment);
+                        }
                     }
                 }
             }
@@ -283,6 +287,41 @@ class VTEXWoowUpOrderMapper implements StageInterface
      * @return [type]              [description]
      */
     protected function buildOrderPayment($vtexPayment)
+    {
+        $payment = [
+            'type'  => $this->getPaymentType($vtexPayment->group),
+            'total' => (float) $vtexPayment->value / 100,
+        ];
+
+        switch ($vtexPayment->paymentSystemName) {
+            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_MP']:
+                // TO-DO Implementar conector de mercado pago
+                break;
+            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_TP']:
+                // TO-DO Implementar conector de todo pago
+                break;
+            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_CASH']:
+            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_COUPON']:
+            case $this->vtexConnector::PAYMENT_SERVICES['SERVICE_COMMERCE']:
+                break;
+            default:
+                if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
+                    $payment['first_digits'] = trim($vtexPayment->firstDigits);
+                }
+                break;
+        }
+
+        if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
+            $payment['brand'] = trim($vtexPayment->paymentSystemName);
+        }
+        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
+            $payment['installments'] = (int) $vtexPayment->installments;
+        }
+
+        return $payment;
+    }
+
+    protected function buildOrderPaymentWithBank($vtexPayment)
     {
         $payment = [
             'type'  => $this->getPaymentType($vtexPayment->group),
