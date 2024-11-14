@@ -268,7 +268,11 @@ class VTEXWoowUpOrderMapper implements StageInterface
             foreach ($vtexOrder->paymentData->transactions as $vtexTransaction) {
                 if (isset($vtexTransaction->payments) && (count($vtexTransaction->payments) > 0)) {
                     foreach ($vtexTransaction->payments as $vtexPayment) {
-                        $payment[] = $this->buildOrderPayment($vtexPayment);
+                        if ($this->isTestFeaturesAccount()) {
+                            $payment[] = $this->buildOrderPaymentWithBank($vtexPayment);
+                        } else {
+                            $payment[] = $this->buildOrderPayment($vtexPayment);
+                        }
                     }
                 }
             }
@@ -313,6 +317,43 @@ class VTEXWoowUpOrderMapper implements StageInterface
         if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
             $payment['installments'] = (int) $vtexPayment->installments;
         }
+
+        return $payment;
+    }
+
+    protected function buildOrderPaymentWithBank($vtexPayment)
+    {
+        $payment = [
+            'type'  => $this->getPaymentType($vtexPayment->group),
+            'total' => (float) $vtexPayment->value / 100,
+        ];
+
+        if (in_array($vtexPayment->paymentSystemName, $this->vtexConnector::PAYMENT_SERVICES)) {
+            $this->logger->info($vtexPayment->paymentSystemName . " is not a cc payment service");
+            return $payment;
+        }
+
+
+
+        if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
+            $payment['first_digits'] = trim($vtexPayment->firstDigits);
+        }
+
+        $bank = $vtexPayment->connectorResponses->issuer ?? null;
+
+        if (!$bank) {
+            $this->logger->info("Payment bank not available");
+            return $payment;
+        }
+
+        if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
+            $payment['brand'] = trim($vtexPayment->paymentSystemName);
+        }
+        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
+            $payment['installments'] = (int) $vtexPayment->installments;
+        }
+
+        $payment['bank'] = $bank;
 
         return $payment;
     }
