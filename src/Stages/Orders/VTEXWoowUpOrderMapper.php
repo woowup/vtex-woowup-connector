@@ -268,11 +268,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
             foreach ($vtexOrder->paymentData->transactions as $vtexTransaction) {
                 if (isset($vtexTransaction->payments) && (count($vtexTransaction->payments) > 0)) {
                     foreach ($vtexTransaction->payments as $vtexPayment) {
-                        if ($this->isTestFeaturesAccount()) {
-                            $payment[] = $this->buildOrderPaymentWithBank($vtexPayment);
-                        } else {
-                            $payment[] = $this->buildOrderPayment($vtexPayment);
-                        }
+                        $payment[] = $this->buildOrderPaymentWithBank($vtexPayment);
                     }
                 }
             }
@@ -282,6 +278,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     }
 
     /**
+     * @deprecated
      * Maps one single VTEX payment to WoowUp's payment format
      * @param  [type] $vtexPayment [description]
      * @return [type]              [description]
