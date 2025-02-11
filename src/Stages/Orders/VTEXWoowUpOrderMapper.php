@@ -330,10 +330,12 @@ class VTEXWoowUpOrderMapper implements StageInterface
             return $payment;
         }
 
-
-
         if (isset($vtexPayment->firstDigits) && (trim($vtexPayment->firstDigits) !== "")) {
             $payment['first_digits'] = trim($vtexPayment->firstDigits);
+        }
+
+        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
+            $payment['installments'] = (int) $vtexPayment->installments;
         }
 
         $bank = $vtexPayment->connectorResponses->issuer ?? null;
@@ -345,9 +347,6 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
         if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
             $payment['brand'] = trim($vtexPayment->paymentSystemName);
-        }
-        if (isset($vtexPayment->installments) && ($vtexPayment->installments > 0)) {
-            $payment['installments'] = (int) $vtexPayment->installments;
         }
 
         $payment['bank'] = $bank;
