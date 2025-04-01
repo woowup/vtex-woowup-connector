@@ -20,4 +20,9 @@ class VTEXConfig
         return explode(',', env('TEST_FEATURE_APP_IDS'));
     }
 
+    public static function downloadInactivePorducts($appId): bool
+    {
+        $accounts = explode(',', env('DOWNLOAD_INACTIVE_PRODUCTS'));
+        return in_array(strval($appId), $accounts);
+    }
 }

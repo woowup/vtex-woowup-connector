@@ -6,6 +6,7 @@ use League\Pipeline\Pipeline;
 use WoowUpConnectors\Exceptions\VTEXException;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
 use Psr;
+use WoowUpConnectors\Stages\VTEXConfig;
 
 class VTEXConnector
 {
@@ -401,6 +402,13 @@ class VTEXConnector
             }
 
             $vtexProducts = json_decode($response->getBody());
+
+            if (empty($vtexProducts) && VTEXConfig::downloadInactivePorducts($this->_appId)) {
+                $vtexProducts = array($this->getProductByProductId($skuId));
+                if (!empty($vtexProducts[0])) {
+                    $vtexProducts[0]->isInactive = true;
+                }
+            }
 
             foreach ($vtexProducts as $vtexBaseProduct) {
                 yield $vtexBaseProduct;
