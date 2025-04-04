@@ -403,7 +403,7 @@ class VTEXConnector
 
             $vtexProducts = json_decode($response->getBody());
 
-            if (empty($vtexProducts) && VTEXConfig::downloadInactivePorducts($this->_appId)) {
+            if (empty($vtexProducts) && VTEXConfig::downloadInactiveProducts($this->_appId)) {
                 $vtexProducts = array($this->getProductByProductId($skuId));
                 if (!empty($vtexProducts[0])) {
                     $vtexProducts[0]->isInactive = true;
