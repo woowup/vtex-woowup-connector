@@ -15,6 +15,13 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
 
     protected function buildProducts($vtexBaseProduct)
     {
+        if (isset($vtexBaseProduct->isInactive) && $vtexBaseProduct->isInactive) {
+            if (!isset($vtexBaseProduct->RefId)) return null;
+            yield [
+                'sku' => $vtexBaseProduct->RefId,
+                'stock' => 0
+            ];
+        }
         if (!$this->hasSku($vtexBaseProduct)) {
             return null;
         }
