@@ -811,7 +811,7 @@ class VTEXConnector
     public function getFromAndToDates($fromDate, $toDate, $daysFrom): array
     {
         if ($fromDate === null) {
-            $dateFromTime = $daysFrom ? strtotime("-$daysFrom days") : strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE);
+            $dateFromTime = $daysFrom || $daysFrom == '0' ? strtotime("-$daysFrom days") : strtotime(self::DEFAULT_FROM_DATE_DIFFERENCE);
             $fromDate = date('Y-m-d', $dateFromTime);
         }
 
