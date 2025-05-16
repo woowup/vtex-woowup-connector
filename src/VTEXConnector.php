@@ -406,6 +406,7 @@ class VTEXConnector
             if (empty($vtexProducts) && VTEXConfig::downloadInactiveProducts($this->_appId)) {
                 $vtexProducts = array($this->getProductByProductId($skuId));
                 if (!empty($vtexProducts[0])) {
+                    $this->_logger->info("Product with SkuId: " . strval($skuId) . " is inactive");
                     $vtexProducts[0]->isInactive = true;
                 }
             }
