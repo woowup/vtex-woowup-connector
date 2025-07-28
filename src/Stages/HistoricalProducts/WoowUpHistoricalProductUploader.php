@@ -29,8 +29,8 @@ class WoowUpHistoricalProductUploader implements StageInterface
 
         $product = $payload;
         $encode = base64_encode($product['sku']);
-        $lastCategory = end($product['category']);
-        $lastCategoryId = $lastCategory['id'];
+        $lastCategory = !empty($product['category']) ? end($product['category']) : null;
+        $lastCategoryId = $lastCategory ? ($lastCategory['id'] ?? null) : 'no_category';
 
         $this->logger->info("[Product] Sku: {$product['sku']} , EncodedSku : {$encode}");
 
