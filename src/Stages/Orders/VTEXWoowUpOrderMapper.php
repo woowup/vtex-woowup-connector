@@ -166,10 +166,11 @@ class VTEXWoowUpOrderMapper implements StageInterface
         $email = $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email);
         if (!empty($email)) {
             $customer['email'] = $email;
+            $isBlacklisted = false;
             foreach (self::BLACKLISTED_EMAIL_PATTERNS as $pattern) {
                 if (stripos($customer['email'], $pattern) !== false) {
                     if (!empty($customer['email'])
-                        && empty($customer['phone'])
+                        && empty($customer['telephone'])
                         && empty($customer['document'])
                         && empty($customer['service_uid'])) {
                         $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
@@ -177,24 +178,32 @@ class VTEXWoowUpOrderMapper implements StageInterface
                     } else {
                         $customer['email'] = self::REPLACEMENT_EMAIL;
                     }
+                    $isBlacklisted = true;
                     break;
                 }
             }
 
-            foreach (self::WHITELISTED_EMAIL_PATTERNS as $pattern) {
-                if (stripos($customer['email'], $pattern) !== false) {
+            if (!$isBlacklisted) {
+                $isWhitelisted = false;
+                foreach (self::WHITELISTED_EMAIL_PATTERNS as $pattern) {
+                    if (stripos($customer['email'], $pattern) !== false) {
+                        $isWhitelisted = true;
+                        break;
+                    }
+                }
+
+                if (!$isWhitelisted) {
                     if (array_key_exists('tags', $customer) && !empty($customer['tags'])) {
                         $customer['tags'] .= ',review_email';
                     } else {
                         $customer['tags'] = 'review_email';
                     }
                 }
-            }
 
-            if (filter_var($customer['email'], FILTER_VALIDATE_EMAIL) !== false) {
-                $customer['email'] = mb_strtolower($customer['email']);
-            } else {
-                unset($customer['email']);
+                $validatedEmail = filter_var($customer['email'], FILTER_VALIDATE_EMAIL) !== false
+                    ? mb_strtolower($customer['email'])
+                    : $customer['email'];
+                $customer['email'] = $validatedEmail;
             }
         }
 
