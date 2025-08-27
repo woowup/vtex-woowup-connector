@@ -12,7 +12,27 @@ class VTEXWoowUpOrderMapper implements StageInterface
     const COMMUNICATION_ENABLED  = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER  = 'other';
-    const INVALID_EMAILS         = ['ct.vtex.com.br', 'mercadolibre.com'];
+
+    const BLACKLISTED_EMAIL_PATTERNS = [
+        'ct.vtex.com.br',
+        'mercadolibre.com',
+        '-noreply@mercadolibre.com',
+        'mail.mercadolibre.com',
+    ];
+
+    const WHITELISTED_EMAIL_PATTERNS = [
+        '@gmail.com',
+        '@hotmail',
+        '@yahoo',
+        '@outlook',
+        '@live',
+        '@icloud',
+        '@msn',
+        '@protonmail.com'
+    ];
+
+    const REPLACEMENT_EMAIL = 'noemail@noemail.com';
+
     const MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS = 5;
 
     protected $importing;
@@ -144,16 +164,37 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $customer['telephone'] = $vtexOrder->clientProfileData->phone;
         }
         $email = $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email);
-        if (!empty($email) && !str_contains($email, 'unavailable')) {
+        if (!empty($email)) {
             $customer['email'] = $email;
-            foreach (self::INVALID_EMAILS as $invalidEmail) {
-                if (stripos($customer['email'], $invalidEmail) !== false) {
-                    if (isset($customer['document'])) {
-                        $customer['email'] = $customer['document'] . '@noemail.com';
+            foreach (self::BLACKLISTED_EMAIL_PATTERNS as $pattern) {
+                if (stripos($customer['email'], $pattern) !== false) {
+                    if (!empty($customer['email'])
+                        && empty($customer['phone'])
+                        && empty($customer['document'])
+                        && empty($customer['service_uid'])) {
+                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
+                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    } else {
+                        $customer['email'] = self::REPLACEMENT_EMAIL;
                     }
-                    $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
+                    break;
                 }
+            }
+
+            foreach (self::WHITELISTED_EMAIL_PATTERNS as $pattern) {
+                if (stripos($customer['email'], $pattern) !== false) {
+                    if (array_key_exists('tags', $customer) && !empty($customer['tags'])) {
+                        $customer['tags'] .= ',review_email';
+                    } else {
+                        $customer['tags'] = 'review_email';
+                    }
+                }
+            }
+
+            if (filter_var($customer['email'], FILTER_VALIDATE_EMAIL) !== false) {
+                $customer['email'] = mb_strtolower($customer['email']);
+            } else {
+                unset($customer['email']);
             }
         }
 
