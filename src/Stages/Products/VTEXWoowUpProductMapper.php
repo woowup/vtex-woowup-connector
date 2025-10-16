@@ -123,7 +123,8 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
                 $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', $specification);
                 $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', utf8_encode($specName));
                 $specName = str_replace(' ', '_', $specName);
-                $customAttributes[$specName] = strip_tags($vtexBaseProduct->{$specification}[0]);
+                $fieldValue = $vtexBaseProduct->{$specification}[0] ?? null;
+                if ($fieldValue) $customAttributes[$specName] = strip_tags($fieldValue);
             }
         }
         foreach ($vtexBaseProduct->items as $item) {
