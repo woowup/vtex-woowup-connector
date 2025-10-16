@@ -152,7 +152,8 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
                 $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', $specification->FieldName);
                 $specName = preg_replace("/[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/i", '', utf8_encode($specName));
                 $specName = str_replace(' ', '_', $specName);
-                $customAttributes[$specName] = strip_tags($specification->FieldValues[0]);
+                $fieldValue = $specification->FieldValues[0] ?? null;
+                if ($fieldValue) $customAttributes[$specName] = strip_tags($fieldValue);
             }
         }
 
