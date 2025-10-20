@@ -69,7 +69,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             }
 
             if (isset($vtexCustomer->homePhone) && !empty($vtexCustomer->homePhone)) {
-                $customer['phone'] = $vtexCustomer->homePhone;
+                $customer['telephone'] = $vtexCustomer->homePhone;
             }
 
             if (isset($vtexCustomer->documentType) && !empty($vtexCustomer->documentType)) {
