@@ -505,12 +505,28 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
     private function interruptBadCataloging($productId)
     {
-        $this->logger->info("Bad cataloging for some products, not found RefId for productId: $productId");
+        $logMessage = $this->getAccountMessage() .
+                      "[CATALOGING ISSUE] RefId not found | ProductId: {$productId}";
+        $this->logger->warning($logMessage);
+
         if (count($this->badCatalogingProductsIds) == 1 && isset($this->notifier)) {
-            $this->notifier->notify($this->getAccountMessage() . "\nMessage: Bad cataloging for some products, not found RefId. ProductId: $productId");
+            $message = $this->getAccountMessage() .
+                       "\n[ALERT] Product Cataloging Issue Detected" .
+                       "\n- Missing: RefId" .
+                       "\n- ProductId: {$productId}";
+            $this->notifier->notify($message);
         }
+
         if ($this->canBeInterrupted()) {
-            throw new BadCatalogingException("Mala catalogación para algunos productos, los siguientes productos no tienen RefId: ", array_unique($this->badCatalogingProductsIds));
+            $productCount = count(array_unique($this->badCatalogingProductsIds));
+            $exceptionMessage = $this->getAccountMessage() .
+                                "\n[PROCESS INTERRUPTED] Bad cataloging detected" .
+                                "\n- Products missing RefId: {$productCount}" .
+                                "\n- Threshold exceeded: " . self::MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS . "%";
+            throw new BadCatalogingException(
+                $exceptionMessage,
+                array_unique($this->badCatalogingProductsIds)
+            );
         }
     }
 

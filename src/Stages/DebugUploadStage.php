@@ -17,7 +17,7 @@ class DebugUploadStage implements StageInterface
 
 	public function __invoke($payload)
 	{
-		var_dump($payload);
+		echo json_encode($payload, JSON_PRETTY_PRINT) . PHP_EOL;
 
 		return [];
 	}
