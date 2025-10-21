@@ -507,7 +507,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $logMessage = $this->getAccountMessage() .
                       "[CATALOGING ISSUE] RefId not found | ProductId: {$productId}";
-        $this->logger->warning($logMessage);
+        $this->logger->info($logMessage);
 
         if (count($this->badCatalogingProductsIds) == 1 && isset($this->notifier)) {
             $message = $this->getAccountMessage() .
