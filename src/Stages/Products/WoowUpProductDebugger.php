@@ -9,7 +9,7 @@ class WoowUpProductDebugger extends DebugUploadStage
 	public function __invoke($payload)
 	{
 		foreach ($payload as $p) {
-			var_dump($p);
+			echo json_encode($p, JSON_PRETTY_PRINT) . PHP_EOL;
 		}
 
 		return [];
