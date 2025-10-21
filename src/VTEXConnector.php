@@ -94,8 +94,10 @@ class VTEXConnector
     private $feature;
     private $features;
 
+    private $accountConfig;
 
-    public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $features = null)
+
+    public function __construct($vtexConfig, \GuzzleHttp\ClientInterface $httpClient, Psr\Log\LoggerInterface $logger, $features = null, $accountConfig = [])
     {
         try {
             $this->_logger = $logger;
@@ -114,6 +116,7 @@ class VTEXConnector
             $this->_httpClient     = $httpClient;
             $this->features        = $features;
             $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $this->getSalesChannel($vtexConfig['salesChannel']) : null;
+            $this->accountConfig   = $accountConfig;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
             return null;
@@ -1013,6 +1016,11 @@ class VTEXConnector
     protected function _post($endpoint, $queryParams = [], $headers = [], $json = [])
     {
         return $this->_request('POST', $endpoint, $queryParams, $headers, $json);
+    }
+
+    public function getAccountConfig()
+    {
+        return $this->accountConfig ?? null;
     }
 
 }
