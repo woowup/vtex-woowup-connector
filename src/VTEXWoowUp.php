@@ -40,9 +40,9 @@ class VTEXWoowUp
 
     protected $ignoreOptIn;
 
-    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null, $ignoreOptIn = false)
+    public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null, $ignoreOptIn = false, $accountConfig = [])
     {
-        $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features);
+        $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features, $accountConfig);
         $this->logger        = $logger;
         $this->woowupClient  = $woowupClient;
         $this->errorHandler  = $errorHandler;
