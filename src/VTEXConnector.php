@@ -952,7 +952,7 @@ class VTEXConnector
         $attempts = 0;
         while ($attempts < self::MAX_REQUEST_ATTEMPTS) {
             try {
-                $response = $this->_httpClient->request($method, $this->_host . $endpoint, [
+                $options = [
                     'headers' => [
                             'Content-Type'        => 'application/json',
                             'Accept'              => 'application/vnd.vtex.ds.v10+json',
@@ -960,8 +960,13 @@ class VTEXConnector
                             'X-VTEX-API-AppToken' => $this->_appToken,
                         ] + $headers,
                     'query' => $queryParams,
-                    'json' => $json
-                ]);
+                ];
+
+                if (strtoupper($method) !== 'GET' && !empty($json)) {
+                    $options['json'] = $json;
+                }
+
+                $response = $this->_httpClient->request($method, $this->_host . $endpoint, $options);
 
                 if (in_array($response->getStatusCode(), [200, 206])) {
                     return $response;
