@@ -187,7 +187,7 @@ class VTEXWoowUp
 
         $this->resetStages();
 
-        return true;
+        return $woowupStats;
     }
 
     public function importSubscriptions($fromDate = null, $debug = false){
@@ -269,7 +269,7 @@ class VTEXWoowUp
 
         $this->resetStages();
 
-        return true;
+        return ['customers' => $woowupStats];
     }
 
     public function importCustomersWithYield($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false)
@@ -323,6 +323,7 @@ class VTEXWoowUp
         $this->uploadStage->resetWoowupStats();
 
         $this->resetStages();
+        return ['customers' => $woowupStats];
     }
 
     public function processCustomers($vtexCustomers)
@@ -383,7 +384,7 @@ class VTEXWoowUp
 
         $this->resetStages();
 
-        return true;
+        return ['products' => $woowupStats];
     }
 
 
@@ -446,7 +447,7 @@ class VTEXWoowUp
 
         $this->resetStages();
 
-        return true;
+        return ['products' => $woowupStats];
     }
 
     public function getConnector()
