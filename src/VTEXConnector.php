@@ -411,7 +411,12 @@ class VTEXConnector
         try {
             $this->populateCategories();
 
-            $response = $this->_get('/api/catalog_system/pub/products/search', ['fq' => "skuId:$skuId"]);
+            $params = ['fq' => "skuId:$skuId"];
+            $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
+            if ($salesChannel) {
+                $params['sc'] = $salesChannel;
+            }
+            $response = $this->_get('/api/catalog_system/pub/products/search', $params);
 
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
