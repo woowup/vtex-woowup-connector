@@ -334,6 +334,11 @@ class VTEXConnector
 
         $totalProductsRetrieved = 0;
 
+        $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
+        if ($salesChannel) {
+            $this->_logger->info("Using sales channel: $salesChannel for products search");
+        }
+
         $this->_logger->info("Getting category leaves");
         $categoryLeaves = $this->getCategoryLeaves(['children' => $categoryTree, 'id' => '']);
 
@@ -341,7 +346,11 @@ class VTEXConnector
             do {
                 $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
-                $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']]);
+                $params = ['_from' => $offset, '_to' => $offset + $limit - 1, 'fq' => 'C:' . $leaf['path']];
+                if ($salesChannel) {
+                    $params['sc'] = $salesChannel;
+                }
+                $response = $this->_get('/api/catalog_system/pub/products/search', $params);
 
                 if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                     throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -360,7 +369,11 @@ class VTEXConnector
             } while ((($limit + $offset) < $total) && ($offset < self::PRODUCTS_MAX_VALUE_FROM_PARAMETER));
             $this->_logger->info("Getting products from $offset to " . ($offset + $limit - 1) . "... with category " . $leaf['name'] . " and path " . $leaf['path']);
 
-            $response = $this->_get('/api/catalog_system/pub/products/search', ['_from' => $offset, '_to' => $offset + $limit-1, 'fq' => 'C:' . $leaf['path']]);
+            $params = ['_from' => $offset, '_to' => $offset + $limit-1, 'fq' => 'C:' . $leaf['path']];
+            if ($salesChannel) {
+                $params['sc'] = $salesChannel;
+            }
+            $response = $this->_get('/api/catalog_system/pub/products/search', $params);
 
             if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
