@@ -62,7 +62,10 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
             return $itemPrize;
         } else {
             $prices = $this->vtexConnector->searchItemPrices($vtexItem->itemId);
-            return $prices->basePrice;
+            if (isset($prices->basePrice)) {
+                return $prices->basePrice;
+            }
+            return 0;
         }
     }
 
