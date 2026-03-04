@@ -289,7 +289,7 @@ class VTEXConnector
                 foreach ($response->list as $vtexOrder) {
                     yield $vtexOrder->orderId;
                 }
-                
+
             } while (($params['page'] * $params['per_page']) < $totalOrders);
 
             $fromDate = date('c', $timeStamp + $intervalSec);
@@ -550,13 +550,13 @@ class VTEXConnector
                 'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
             ];
 
-            $response = $this->_get('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders);
+            $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
 
             $this->_logger->info("Success!");
-            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
+            $totalCustomers   = (int)$response->getHeader('REST-Content-Total')[0];
             $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
             yield json_decode($response->getBody());
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
@@ -1031,6 +1031,27 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
+    private function _getCustomersWithRetry($endpoint, $params, $requestHeaders, $page, $maxRetries = 3)
+    {
+        for ($retry = 0; $retry < $maxRetries; $retry++) {
+            $response = $this->_get($endpoint, $params, $requestHeaders);
+            $hasHeaders = !empty($response->getHeader('REST-Content-Total'))
+                && !empty($response->getHeader('X-VTEX-MD-TOKEN'));
+
+            if ($response->getStatusCode() === 200 && $hasHeaders) {
+                return $response;
+            }
+
+            $this->_logger->warning("VTEX missing headers in customers response, retrying...", [
+                'page'  => $page,
+                'retry' => $retry + 1,
+            ]);
+            sleep(1);
+        }
+
+        return $response;
+    }
+
     protected function _get($endpoint, $queryParams = [], $headers = [])
     {
         return $this->_request('GET', $endpoint, $queryParams, $headers);
