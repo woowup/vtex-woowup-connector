@@ -1049,7 +1049,7 @@ class VTEXConnector
             sleep(1);
         }
 
-        return $response;
+        throw new \Exception("VTEX Scroll API missing headers after {$maxRetries} retries on page {$page}");
     }
 
     protected function _get($endpoint, $queryParams = [], $headers = [])
