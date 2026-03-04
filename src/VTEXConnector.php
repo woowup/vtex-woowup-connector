@@ -1035,10 +1035,15 @@ class VTEXConnector
     {
         for ($retry = 0; $retry < $maxRetries; $retry++) {
             $response = $this->_get($endpoint, $params, $requestHeaders);
+
+            if ($response->getStatusCode() !== 200) {
+                return $response;
+            }
+
             $hasHeaders = !empty($response->getHeader('REST-Content-Total'))
                 && !empty($response->getHeader('X-VTEX-MD-TOKEN'));
 
-            if ($response->getStatusCode() === 200 && $hasHeaders) {
+            if ($hasHeaders) {
                 return $response;
             }
 
