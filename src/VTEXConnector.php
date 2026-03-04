@@ -556,7 +556,7 @@ class VTEXConnector
             }
 
             $this->_logger->info("Success!");
-            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
+            $totalCustomers   = (int)$response->getHeader('REST-Content-Total')[0];
             $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
             yield json_decode($response->getBody());
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
@@ -1035,10 +1035,15 @@ class VTEXConnector
     {
         for ($retry = 0; $retry < $maxRetries; $retry++) {
             $response = $this->_get($endpoint, $params, $requestHeaders);
+
+            if ($response->getStatusCode() !== 200) {
+                return $response;
+            }
+
             $hasHeaders = !empty($response->getHeader('REST-Content-Total'))
                 && !empty($response->getHeader('X-VTEX-MD-TOKEN'));
 
-            if ($response->getStatusCode() === 200 && $hasHeaders) {
+            if ($hasHeaders) {
                 return $response;
             }
 
