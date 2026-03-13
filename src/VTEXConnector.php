@@ -67,10 +67,10 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
-    const MAX_REQUEST_ATTEMPTS = 3;
+    const MAX_REQUEST_ATTEMPTS = 5;
 
     const DEFAULT_SLEEP_SEC = 2;
-    const TOO_MANY_REQUESTS_SLEEP_SEC = 30;
+    const TOO_MANY_REQUESTS_SLEEP_SEC = 60;
 
     const DEFAULT_SALES_WINDOW = 3;
     const VTEX_PAGE_LIMIT = 30;
@@ -556,8 +556,19 @@ class VTEXConnector
             }
 
             $this->_logger->info("Success!");
-            $totalCustomers   = $response->getHeader('REST-Content-Total')[0];
-            $params['_token'] = $response->getHeader('X-VTEX-MD-TOKEN')[0];
+            $totalHeader = $response->getHeader('REST-Content-Total');
+            if (empty($totalHeader)) {
+                $this->_logger->warning("Missing REST-Content-Total header in scroll response (page $page)");
+                $totalCustomers = 0;
+            } else {
+                $totalCustomers = (int) $totalHeader[0];
+            }
+            $tokenHeader = $response->getHeader('X-VTEX-MD-TOKEN');
+            if (!empty($tokenHeader)) {
+                $params['_token'] = $tokenHeader[0];
+            } else {
+                unset($params['_token']);
+            }
             yield json_decode($response->getBody());
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
@@ -1001,7 +1012,8 @@ class VTEXConnector
                     $this->_logger->error("Error [" . $code . "] " . $message);
                     if ($response->getStatusCode() == 429) {
                         $this->_logger->info("Too many request");
-                        sleep(self::TOO_MANY_REQUESTS_SLEEP_SEC);
+                        $retryAfter = (int)($response->getHeader('Retry-After')[0] ?? 0);
+                        sleep($retryAfter > 0 ? $retryAfter : self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                     } elseif (in_array($response->getStatusCode(), [500, 503, 504])) {
@@ -1040,8 +1052,7 @@ class VTEXConnector
                 return $response;
             }
 
-            $hasHeaders = !empty($response->getHeader('REST-Content-Total'))
-                && !empty($response->getHeader('X-VTEX-MD-TOKEN'));
+            $hasHeaders = !empty($response->getHeader('REST-Content-Total'));
 
             if ($hasHeaders) {
                 return $response;
