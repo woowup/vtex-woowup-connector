@@ -15,6 +15,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER = 'other';
     const INVALID_EMAILS = ['ct.vtex.com.br', 'mercadolibre.com'];
+    const OPT_IN_MAX_ATTEMPTS = 25;
 
     protected $vtexConnector;
     protected $logger;
@@ -151,6 +152,19 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     }
 
 
+    /**
+     * Checks WoowUp to determine whether the customer's mailing opt-in should be mapped.
+     *
+     * Makes a GET request to /multiusers/find. Returns true if the customer does not exist
+     * in WoowUp yet (404) or if their mailing_enabled_reason is null or 'other' (meaning the
+     * connector is allowed to overwrite it). Returns false in all other cases.
+     *
+     * Retries up to OPT_IN_MAX_ATTEMPTS times on 429, sleeping the number of seconds
+     * indicated by the Retry-After header before each retry.
+     *
+     * @param array $customer Customer data array, expected to contain 'email' and/or 'document'.
+     * @return bool True if the opt-in should be mapped, false otherwise.
+     */
     protected function newComunicationOptIn($customer)
     {
         $endpoint = env('WOOWUP_HOST').'/'.env('WOOWUP_VERSION').'/multiusers/find';
@@ -166,38 +180,75 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             return false;
         }
 
-        try {
-            $response = $this->_httpClient->request('GET', $endpoint, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'Authorization' => 'Basic ' . $this->apiKey,
-                ],
-                'query' => $queryParams,
-            ]);
-            $code = $response->getStatusCode();
-            if (in_array($code, [200, 206])) {
-                $body = json_decode((string) $response->getBody());
-                if (($body->payload->mailing_enabled_reason == null) || ($body->payload->mailing_enabled_reason == 'other')) {
-                    return true;
+        for ($attempt = 0; $attempt < self::OPT_IN_MAX_ATTEMPTS; $attempt++) {
+            try {
+                $response = $this->_httpClient->request('GET', $endpoint, [
+                    'headers' => [
+                        'Content-Type' => 'application/json',
+                        'Accept'        => 'application/json',
+                        'Authorization' => 'Basic ' . $this->apiKey,
+                    ],
+                    'query' => $queryParams,
+                ]);
+
+                $code = $response->getStatusCode();
+                if (in_array($code, [200, 206])) {
+                    $body = json_decode((string) $response->getBody());
+                    $reason = $body->payload->mailing_enabled_reason ?? null;
+                    if ($reason === null || $reason === 'other') {
+                        return true;
+                    }
                 }
-            }
-        }catch (ClientException $e) {
-            if ($e->hasResponse()) {
-                $code = $e->getResponse()->getStatusCode();
-                $this->logger->error("Client Error [" . $code . "] ");
-                if ($code == 404){
-                    return true;
+                return false;
+
+            } catch (ClientException $e) {
+                if ($e->hasResponse()) {
+                    $code = $e->getResponse()->getStatusCode();
+
+                    if ($code === 404) {
+                        return true;
+                    }
+
+                    if ($code === 429) {
+                        $this->logger->warning("newComunicationOptIn: 429 on attempt " . ($attempt + 1) . " for " . $this->customerIdentity($customer));
+                        $isLastAttempt = ($attempt + 1) === self::OPT_IN_MAX_ATTEMPTS;
+                        if (!$isLastAttempt) {
+                            $retryAfter = (int) $e->getResponse()->getHeaderLine('Retry-After');
+                        sleep($retryAfter ?: (int) pow(2, $attempt));
+                            continue;
+                        }
+                        $this->logger->error("newComunicationOptIn: 429 unresolved after " . self::OPT_IN_MAX_ATTEMPTS . " attempts — opt-in silenced for " . $this->customerIdentity($customer));
+                        return false;
+                    }
+
+                    $this->logger->error("Client Error [" . $code . "] ");
                 }
-            }
-        }catch (ServerException $e){
-            if ($e->hasResponse()) {
-                $code = $e->getResponse()->getStatusCode();
-                $this->logger->error("Server Error [" . $code . "] " );
+                return false;
+
+            } catch (ServerException $e) {
+                if ($e->hasResponse()) {
+                    $this->logger->error("Server Error [" . $e->getResponse()->getStatusCode() . "] ");
+                }
+                return false;
             }
         }
 
         return false;
+    }
+
+    /**
+     * Returns a string identifying the customer for use in log messages.
+     *
+     * @param array $customer Customer data array.
+     * @return string Comma-separated email and/or document, or 'sin identidad' if neither is present.
+     */
+    private function customerIdentity(array $customer): string
+    {
+        $parts = array_filter([
+            $customer['email'] ?? null,
+            $customer['document'] ?? null,
+        ]);
+        return implode(',', $parts) ?: 'sin identidad';
     }
 
     protected function buildAddress($vtexAddress)
