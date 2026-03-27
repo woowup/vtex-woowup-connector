@@ -67,9 +67,10 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
-    const MAX_REQUEST_ATTEMPTS = 5;
+    const MAX_REQUEST_ATTEMPTS = 25;
 
     const DEFAULT_SLEEP_SEC = 2;
+    const MAX_SLEEP_SEC = 60;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 60;
 
     const DEFAULT_SALES_WINDOW = 3;
@@ -1027,7 +1028,7 @@ class VTEXConnector
                 }
             }
             $attempts++;
-            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
+            sleep(min(pow(self::DEFAULT_SLEEP_SEC, $attempts), self::MAX_SLEEP_SEC));
         }
         $this->_logger->info("Max request attempts reached");
 
