@@ -1016,7 +1016,7 @@ class VTEXConnector
                         sleep($retryAfter > 0 ? $retryAfter : self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
-                    } elseif (in_array($response->getStatusCode(), [500, 503, 504])) {
+                    } elseif (in_array($response->getStatusCode(), [500, 502, 503, 504])) {
                         $isVTEXServerError = true;
                         $this->_logger->info("VTEX Server error, endpoint: " . $endpoint . " queryParams: " . json_encode($queryParams));
                     } else {
