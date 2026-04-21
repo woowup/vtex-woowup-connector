@@ -67,10 +67,9 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
-    const MAX_REQUEST_ATTEMPTS = 25;
+    const MAX_REQUEST_ATTEMPTS = 5;
 
     const DEFAULT_SLEEP_SEC = 2;
-    const MAX_SLEEP_SEC = 60;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 60;
 
     const DEFAULT_SALES_WINDOW = 3;
@@ -1008,8 +1007,14 @@ class VTEXConnector
                     $response = $e->getResponse();
                     $code = $response->getStatusCode();
                     $body = (string)$e->getResponse()->getBody();
-                    $body = json_decode($body);
-                    $message = $body->Message ?? $body->error->message ?? $code;
+                    $decoded = json_decode($body);
+                    if (is_string($decoded)) {
+                        $message = $decoded;
+                    } elseif (is_object($decoded)) {
+                        $message = $decoded->Message ?? $decoded->error->message ?? $body ?? $code;
+                    } else {
+                        $message = $body ?: $code;
+                    }
                     $this->_logger->error("Error [" . $code . "] " . $message);
                     if ($response->getStatusCode() == 429) {
                         $this->_logger->info("Too many request");
@@ -1017,7 +1022,10 @@ class VTEXConnector
                         sleep($retryAfter > 0 ? $retryAfter : self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
-                    } elseif (in_array($response->getStatusCode(), [500, 502, 503, 504])) {
+                    } elseif (in_array($response->getStatusCode(), [500, 503, 504])) {
+                        if ($message !== $code) {
+                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                        }
                         $isVTEXServerError = true;
                         $this->_logger->info("VTEX Server error, endpoint: " . $endpoint . " queryParams: " . json_encode($queryParams));
                     } else {
@@ -1028,7 +1036,7 @@ class VTEXConnector
                 }
             }
             $attempts++;
-            sleep(min(pow(self::DEFAULT_SLEEP_SEC, $attempts), self::MAX_SLEEP_SEC));
+            sleep(pow(self::DEFAULT_SLEEP_SEC, $attempts));
         }
         $this->_logger->info("Max request attempts reached");
 
