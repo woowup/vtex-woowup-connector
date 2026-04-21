@@ -443,6 +443,16 @@ class VTEXConnector
 
     protected function getSkuIdList()
     {
+        $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
+
+        $endpoint = $salesChannel
+            ? '/api/catalog_system/pvt/sku/stockkeepingunitidsbysaleschannel'
+            : '/api/catalog_system/pvt/sku/stockkeepingunitids';
+
+        if ($salesChannel) {
+            $this->_logger->info("Filtering historical products by sales channel: $salesChannel");
+        }
+
         $skuIdList = [];
 
         $params = [
@@ -450,19 +460,23 @@ class VTEXConnector
             'pagesize' => self::HISTORICAL_PRODUCTS_SEARCH_LIMIT
         ];
 
+        if ($salesChannel) {
+            $params['sc'] = $salesChannel;
+        }
+
         do {
             $params['page']++;
 
-            $response = $this->_get('/api/catalog_system/pvt/sku/stockkeepingunitids', $params);
+            $response = $this->_get($endpoint, $params);
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
 
             $vtexSkuIds = json_decode($response->getBody());
 
-            $skuIdList = array_merge($skuIdList, $vtexSkuIds);
+            $skuIdList = array_merge($skuIdList, $vtexSkuIds ?? []);
 
-        } while (!empty(json_decode($response->getBody())));
+        } while (!empty($vtexSkuIds));
 
         return $skuIdList;
     }
