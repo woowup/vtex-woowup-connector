@@ -1019,7 +1019,8 @@ class VTEXConnector
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                     } elseif (in_array($response->getStatusCode(), [500, 502, 503, 504])) {
-                        if (is_string($decoded)) {
+                        $text = is_string($decoded) ? $decoded : $body;
+                        if (strpos($text, 'não encontrado') !== false) {
                             throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                         }
                         $isVTEXServerError = true;
