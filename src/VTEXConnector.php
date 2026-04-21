@@ -1009,13 +1009,8 @@ class VTEXConnector
                     $code = $response->getStatusCode();
                     $body = (string)$e->getResponse()->getBody();
                     $decoded = json_decode($body);
-                    if (is_string($decoded)) {
-                        $message = $decoded;
-                    } elseif (is_object($decoded)) {
-                        $message = $decoded->Message ?? $decoded->error->message ?? $body ?? $code;
-                    } else {
-                        $message = $body ?: $code;
-                    }
+                    $message = $decoded->Message ?? $decoded->error->message ?? $body ?? $code;
+
                     $this->_logger->error("Error [" . $code . "] " . $message);
                     if ($response->getStatusCode() == 429) {
                         $this->_logger->info("Too many request");
@@ -1024,7 +1019,7 @@ class VTEXConnector
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                     } elseif (in_array($response->getStatusCode(), [500, 502, 503, 504])) {
-                        if ($message !== $code) {
+                        if (is_string($decoded)) {
                             throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                         }
                         $isVTEXServerError = true;
