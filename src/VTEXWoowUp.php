@@ -40,6 +40,14 @@ class VTEXWoowUp
 
     protected $ignoreOptIn;
 
+    /** @var callable|null */
+    private $onOrdersFound = null;
+
+    public function setOnOrdersFound(callable $callback): void
+    {
+        $this->onOrdersFound = $callback;
+    }
+
     public function __construct($vtexConfig, $httpClient, $logger, $woowupClient, $errorHandler, $features = null, $notifier = null, $ignoreOptIn = false, $accountConfig = [])
     {
         $this->vtexConnector = new VTEXConnector($vtexConfig, $httpClient, $logger, $features, $accountConfig);
@@ -147,6 +155,10 @@ class VTEXWoowUp
 
         $countOrders = $this->vtexConnector->countOrders($fromDate, $toDate, $daysFrom);
         $this->logger->info("Found " . $countOrders . " orders to import");
+
+        if ($this->onOrdersFound !== null) {
+            ($this->onOrdersFound)($countOrders);
+        }
 
         // Pipeline = Download(VTEX) + ... + Map (VTEX->WoowUp) + ... + Upload(WoowUp)
         if (!$this->downloadStage) {
