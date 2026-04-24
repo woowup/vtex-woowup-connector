@@ -543,16 +543,23 @@ class VTEXConnector
         } while (((100 * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
-    public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL")
+    public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn')
     {
         if($toDate === null){
             $toDate = date('Y-m-d', strtotime('+1 days'));
         }
 
         $this->_logger->info("Getting updated and created customers from date " . $fromDate. " to " . $toDate . " and dataEntity $dataEntity");
+
+        if ($dateField === 'createdIn') {
+            $where = "(createdIn<$toDate) AND (createdIn>$fromDate)";
+        } else {
+            $where = "((updatedIn<$toDate) AND (updatedIn>$fromDate)) OR ((updatedIn is null) AND (createdIn<$toDate) AND (createdIn>$fromDate))";
+        }
+
         $params = [
             '_fields' => 'id',
-            '_where' => "((updatedIn<$toDate) AND (updatedIn>$fromDate)) OR ((updatedIn is null) AND (createdIn<$toDate) AND (createdIn>$fromDate))",
+            '_where' => $where,
         ];
         $offset = 0;
         $limit  = 100;
