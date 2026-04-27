@@ -543,13 +543,15 @@ class VTEXConnector
         } while (((100 * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
-    public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn')
+    public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn', $startPage = 1)
     {
         if($toDate === null){
             $toDate = date('Y-m-d', strtotime('+1 days'));
         }
 
-        $this->_logger->info("Getting updated and created customers from date " . $fromDate. " to " . $toDate . " and dataEntity $dataEntity");
+        $startPage = max(1, (int) $startPage);
+
+        $this->_logger->info("Getting customers by $dateField from $fromDate to $toDate and dataEntity $dataEntity" . ($startPage > 1 ? " (starting from page $startPage)" : ""));
 
         if ($dateField === 'createdIn') {
             $where = "(createdIn<$toDate) AND (createdIn>$fromDate)";
@@ -561,9 +563,9 @@ class VTEXConnector
             '_fields' => 'id',
             '_where' => $where,
         ];
-        $offset = 0;
         $limit  = 100;
-        $page   = 0;
+        $offset = ($startPage - 1) * $limit;
+        $page   = $startPage - 1;
         do {
             $page++;
             $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
@@ -584,6 +586,9 @@ class VTEXConnector
                 $totalCustomers = 0;
             } else {
                 $totalCustomers = (int) $totalHeader[0];
+            }
+            if ($page === $startPage) {
+                $this->_logger->info("Total customers: $totalCustomers — Total pages: " . ceil($totalCustomers / $limit));
             }
             $tokenHeader = $response->getHeader('X-VTEX-MD-TOKEN');
             if (!empty($tokenHeader)) {

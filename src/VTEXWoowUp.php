@@ -222,7 +222,7 @@ class VTEXWoowUp
         return true;
     }
 
-    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $historical = false)
+    public function importCustomers($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $historical = false, $startPage = 1)
     {
         if (!$fromDate) {
             $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
@@ -249,7 +249,7 @@ class VTEXWoowUp
 
         $dateField = $historical ? 'createdIn' : 'updatedIn';
         $this->preparePipeline();
-        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity, $dateField) as $vtexCustomers) {
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity, $dateField, $startPage) as $vtexCustomers) {
             foreach ($vtexCustomers as $vtexCustomer) {
                 $vtexCustomerId = $vtexCustomer->id;
                 if (!$vtexCustomerId) {
@@ -273,7 +273,7 @@ class VTEXWoowUp
         return ['customers' => $woowupStats];
     }
 
-    public function importCustomersWithYield($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false, $historical = false)
+    public function importCustomersWithYield($fromDate = null, $toDate = null, $days= null, $debug = false, $dataEntity = "CL", $toFile = false, $historical = false, $startPage = 1)
     {
         if (!$fromDate) {
             $fromDate = ($days) ? date('Y-m-d', strtotime("-$days days")) : date('Y-m-d', strtotime("-3 days"));
@@ -282,7 +282,7 @@ class VTEXWoowUp
         $this->logger->info("Importing customers from $fromDate and entity $dataEntity");
         $this->initProcessCustomers($dataEntity,$debug);
         $dateField = $historical ? 'createdIn' : 'updatedIn';
-        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity, $dateField) as $vtexCustomers) {
+        foreach ($this->vtexConnector->getCustomers($fromDate, $toDate, $dataEntity, $dateField, $startPage) as $vtexCustomers) {
             yield $vtexCustomers;
         }
     }
