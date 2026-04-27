@@ -563,16 +563,44 @@ class VTEXConnector
             '_fields' => 'id',
             '_where' => $where,
         ];
-        $limit  = 100;
-        $offset = ($startPage - 1) * $limit;
-        $page   = $startPage - 1;
+        $limit          = 100;
+        $page           = 0;
+        $totalCustomers = 0;
+
+        // The VTEX scroll API is cursor-based: REST-Range offset is ignored on a fresh
+        // session. To honor startPage, we consume pages 1..startPage-1 silently (no yield)
+        // so the token advances to the correct position before we start processing.
+        $requestHeaders = ['REST-Range' => 'resources=0-' . ($limit - 1)];
+
+        if ($startPage > 1) {
+            $this->_logger->info("Fast-forwarding scroll cursor to page $startPage (skipping " . ($startPage - 1) . " pages silently)");
+            for ($warmup = 1; $warmup < $startPage; $warmup++) {
+                $page++;
+                $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
+                if ($response->getStatusCode() !== 200) {
+                    throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
+                }
+                $totalHeader = $response->getHeader('REST-Content-Total');
+                if (!empty($totalHeader)) {
+                    $totalCustomers = (int) $totalHeader[0];
+                }
+                $tokenHeader = $response->getHeader('X-VTEX-MD-TOKEN');
+                if (!empty($tokenHeader)) {
+                    $params['_token'] = $tokenHeader[0];
+                } else {
+                    unset($params['_token']);
+                }
+                $this->_logger->info("Fast-forward: skipped page $warmup / " . ceil($totalCustomers / $limit));
+                if (empty(json_decode($response->getBody()))) {
+                    return;
+                }
+            }
+            $this->_logger->info("Cursor ready at page $startPage. Total customers: $totalCustomers — Total pages: " . ceil($totalCustomers / $limit));
+        }
+
         do {
             $page++;
-            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
-
-            $requestHeaders = [
-                'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
-            ];
+            $this->_logger->info("Offset: " . (($page - 1) * $limit) . ", Limit: " . $limit . ", Page: " . $page);
 
             $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
             if ($response->getStatusCode() !== 200) {
@@ -1075,12 +1103,28 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    private function _getCustomersWithRetry($endpoint, $params, $requestHeaders, $page, $maxRetries = 3)
+    private function _getCustomersWithRetry($endpoint, $params, $requestHeaders, $page, $maxRetries = 5)
     {
         for ($retry = 0; $retry < $maxRetries; $retry++) {
             $response = $this->_get($endpoint, $params, $requestHeaders);
+            $status   = $response->getStatusCode();
 
-            if ($response->getStatusCode() !== 200) {
+            // 429 / 408: exponential backoff + jitter, respecting Retry-After
+            if ($status === 429 || $status === 408) {
+                $retryAfter  = (int) ($response->getHeader('Retry-After')[0] ?? 0);
+                $backoffMs   = (int) (pow(2, $retry) * 1000 * (0.5 + (mt_rand() / mt_getrandmax()) * 0.5));
+                $waitMs      = max($retryAfter * 1000, $backoffMs);
+                $this->_logger->warning("VTEX scroll {$status} on page {$page}, waiting {$waitMs}ms before retry", [
+                    'page'        => $page,
+                    'retry'       => $retry + 1,
+                    'retry_after' => $retryAfter,
+                    'backoff_ms'  => $backoffMs,
+                ]);
+                usleep($waitMs * 1000);
+                continue;
+            }
+
+            if ($status !== 200) {
                 return $response;
             }
 
@@ -1097,7 +1141,7 @@ class VTEXConnector
             sleep(1);
         }
 
-        throw new \Exception("VTEX Scroll API missing headers after {$maxRetries} retries on page {$page}");
+        throw new \Exception("VTEX Scroll API failed after {$maxRetries} retries on page {$page}");
     }
 
     protected function _get($endpoint, $queryParams = [], $headers = [])
