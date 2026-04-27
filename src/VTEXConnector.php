@@ -563,15 +563,14 @@ class VTEXConnector
             '_fields' => 'id',
             '_where' => $where,
         ];
-        $limit  = 100;
-        $offset = ($startPage - 1) * $limit;
-        $page   = $startPage - 1;
+        $limit = 100;
+        $page  = 0;
         do {
             $page++;
-            $this->_logger->info("Offset: " . $offset . ", Limit: " . $limit . ", Page: " . $page);
+            $this->_logger->info("Page: " . $page . ", Limit: " . $limit . ($page < $startPage ? " (skipping to reach startPage $startPage)" : ""));
 
             $requestHeaders = [
-                'REST-Range' => 'resources=' . $offset . '-' . ($offset + $limit),
+                'REST-Range' => 'resources=0-' . $limit,
             ];
 
             $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
@@ -579,7 +578,6 @@ class VTEXConnector
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
 
-            $this->_logger->info("Success!");
             $totalHeader = $response->getHeader('REST-Content-Total');
             if (empty($totalHeader)) {
                 $this->_logger->warning("Missing REST-Content-Total header in scroll response (page $page)");
@@ -587,7 +585,7 @@ class VTEXConnector
             } else {
                 $totalCustomers = (int) $totalHeader[0];
             }
-            if ($page === $startPage) {
+            if ($page === 1) {
                 $this->_logger->info("Total customers: $totalCustomers — Total pages: " . ceil($totalCustomers / $limit));
             }
             $tokenHeader = $response->getHeader('X-VTEX-MD-TOKEN');
@@ -596,7 +594,9 @@ class VTEXConnector
             } else {
                 unset($params['_token']);
             }
-            yield json_decode($response->getBody());
+            if ($page >= $startPage) {
+                yield json_decode($response->getBody());
+            }
         } while ((($limit * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
