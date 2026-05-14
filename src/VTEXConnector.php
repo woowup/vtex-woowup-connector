@@ -72,6 +72,7 @@ class VTEXConnector
     const DEFAULT_SLEEP_SEC = 2;
     const MAX_SLEEP_SEC = 60;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 60;
+    const SCROLL_TOKEN_RESTART_LIMIT = 3;
 
     const DEFAULT_SALES_WINDOW = 3;
     const VTEX_PAGE_LIMIT = 30;
@@ -598,11 +599,42 @@ class VTEXConnector
             $this->_logger->info("Cursor ready at page $startPage. Total customers: $totalCustomers — Total pages: " . ceil($totalCustomers / $limit));
         }
 
+        $tokenRestarts = 0;
+
         do {
             $page++;
             $this->_logger->info("Offset: " . (($page - 1) * $limit) . ", Limit: " . $limit . ", Page: " . $page);
 
-            $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
+            $fetched = false;
+            while (!$fetched) {
+                try {
+                    $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
+                    $fetched = true;
+                } catch (Exceptions\VTEXRequestException $e) {
+                    if ($e->getCode() === 400
+                        && strpos($e->getMessage(), 'Operation not found for this token') !== false
+                        && $tokenRestarts < self::SCROLL_TOKEN_RESTART_LIMIT
+                    ) {
+                        $tokenRestarts++;
+                        $this->_logger->warning("VTEX scroll token expired on page $page (restart $tokenRestarts/" . self::SCROLL_TOKEN_RESTART_LIMIT . "), fast-forwarding to refresh cursor...");
+                        unset($params['_token']);
+                        for ($warmup = 1; $warmup < $page; $warmup++) {
+                            $warmupResponse = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $warmup);
+                            $warmupToken = $warmupResponse->getHeader('X-VTEX-MD-TOKEN');
+                            if (!empty($warmupToken)) {
+                                $params['_token'] = $warmupToken[0];
+                            } else {
+                                unset($params['_token']);
+                            }
+                            $this->_logger->info("Token refresh fast-forward: page $warmup / " . ($page - 1));
+                        }
+                        $this->_logger->info("Token refreshed, retrying page $page");
+                    } else {
+                        throw $e;
+                    }
+                }
+            }
+
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
             }
