@@ -49,6 +49,9 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
                 continue;
             }
 
+            $teasers = $vtexProduct->sellers[0]->commertialOffer->PromotionTeasers ?? [];
+            $baseProduct['custom_attributes']['Promocion del Producto'] = !empty($teasers) ? $teasers[0]->Name : 'No tiene';
+
             yield $baseProduct;
         }
     }
