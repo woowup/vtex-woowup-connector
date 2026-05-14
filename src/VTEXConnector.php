@@ -599,6 +599,10 @@ class VTEXConnector
             $this->_logger->info("Cursor ready at page $startPage. Total customers: $totalCustomers — Total pages: " . ceil($totalCustomers / $limit));
         }
 
+        // Global counter across all pages — does NOT reset after a successful recovery.
+        // In long scrolls (thousands of pages) where token expiry is sporadic, this means
+        // SCROLL_TOKEN_RESTART_LIMIT failures total (not per page) will abort the run.
+        // Raise SCROLL_TOKEN_RESTART_LIMIT if recurring expiries are observed in practice.
         $tokenRestarts = 0;
 
         do {
@@ -610,7 +614,7 @@ class VTEXConnector
                 try {
                     $response = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $page);
                     $fetched = true;
-                } catch (Exceptions\VTEXRequestException $e) {
+                } catch (VTEXRequestException $e) {
                     if ($e->getCode() === 400
                         && strpos($e->getMessage(), 'Operation not found for this token') !== false
                         && $tokenRestarts < self::SCROLL_TOKEN_RESTART_LIMIT
