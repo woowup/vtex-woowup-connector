@@ -69,6 +69,8 @@ class VTEXWoowUpProductWithoutChildrenMapper extends VTEXWoowUpProductMapper
             $product['custom_attributes'] = $customAttributes;
         }
 
+        $product['custom_attributes']['Promocion_del_Producto'] = $this->getPromotionTeaser($firstItem);
+
         yield $product;
     }
 

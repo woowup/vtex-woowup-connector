@@ -159,4 +159,10 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         return empty($product['price']) || empty($product['offer_price']);
     }
 
+    protected function getPromotionTeaser($vtexItem): string
+    {
+        $teasers = $vtexItem->sellers[0]->commertialOffer->PromotionTeasers ?? [];
+        return !empty($teasers) ? $teasers[0]->Name : 'No tiene';
+    }
+
 }
