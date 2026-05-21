@@ -20,6 +20,8 @@ use WoowUpConnectors\Stages\Products\WoowUpProductDebugger;
 use WoowUpConnectors\Stages\Products\WoowUpProductUploader;
 use WoowUpConnectors\Stages\HistoricalProducts\VTEXWoowUpHistoricalProductMapper;
 use WoowUpConnectors\Stages\HistoricalProducts\WoowUpHistoricalProductUploader;
+use WoowUpConnectors\Stages\Carts\VTEXWoowUpCartMapper;
+use WoowUpConnectors\Stages\Carts\WoowUpCartUploader;
 use League\Pipeline\Pipeline;
 
 class VTEXWoowUp
@@ -462,6 +464,26 @@ class VTEXWoowUp
         $this->resetStages();
 
         return ['products' => $woowupStats];
+    }
+
+    public function importAbandonedCart(array $cartdata, $woowupV2Client, bool $debug = false): bool
+    {
+        if (!$this->mapStage) {
+            $this->setMapStage(new VTEXWoowUpCartMapper($this->vtexConnector, $this->logger));
+        }
+
+        if (!$this->uploadStage) {
+            $this->setUploadStage(
+                $debug
+                    ? new DebugUploadStage()
+                    : new WoowUpCartUploader($woowupV2Client, $this->logger)
+            );
+        }
+
+        $this->preparePipeline();
+        $this->run($cartdata);
+
+        return true;
     }
 
     public function getConnector()
