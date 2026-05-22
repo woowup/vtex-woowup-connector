@@ -74,9 +74,9 @@ class WoowUpCartUploader implements StageInterface
                     $customer->setDocument($customerData['document']);
                 }
                 $this->woowupV2Client->users->create($customer);
-                $this->logger->info("Customer {$customerData['email']} created.");
+                $this->logger->info("Customer created.");
             } else {
-                $this->logger->info("Customer {$customerData['email']} already exists.");
+                $this->logger->info("Customer already exists.");
             }
         } catch (RequestException $e) {
             $body = $e->hasResponse() ? json_decode((string) $e->getResponse()->getBody(), true) : [];
