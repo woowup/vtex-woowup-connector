@@ -46,6 +46,13 @@ class WoowUpCartUploader implements StageInterface
             $this->logger->info("Error uploading cart: [$code] $msg");
             $this->woowupStats['failed'][] = $cart;
             return false;
+        } catch (\Exception $e) {
+            $this->logger->warning("Invalid cart data, skipping", [
+                'external_id' => $cart->getExternalId(),
+                'error'       => $e->getMessage(),
+            ]);
+            $this->woowupStats['failed'][] = $cart;
+            return false;
         }
     }
 
