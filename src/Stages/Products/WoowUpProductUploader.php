@@ -7,74 +7,84 @@ use League\Pipeline\StageInterface;
 
 class WoowUpProductUploader implements StageInterface
 {
-	protected $woowupClient;
-	protected $logger;
-	protected $woowupStats;
+    private const MAX_ATTR_STRIP_RETRIES = 5;
+
+    protected $woowupClient;
+    protected $logger;
+    protected $woowupStats;
     protected $cleanser;
 
-	public function __construct($woowupClient, $logger, $cleanser)
-	{
-		$this->woowupClient = $woowupClient;
-		$this->logger       = $logger;
+    public function __construct($woowupClient, $logger, $cleanser)
+    {
+        $this->woowupClient = $woowupClient;
+        $this->logger       = $logger;
         $this->cleanser     = $cleanser;
 
-		$this->resetWoowupStats();
+        $this->resetWoowupStats();
 
-		return $this;
-	}
+        return $this;
+    }
 
-	public function __invoke($payload)
-	{
+    public function __invoke($payload)
+    {
         $begin = microtime(true);
         $processedProducts = [];
         foreach ($payload as $product) {
             $processedProducts[] = $product;
-    		try {
-                $this->woowupClient->products->update($product['sku'], $product);
-                $this->logger->info("[Product] {$product['sku']} Updated Successfully");
-                $this->logProductData($product);
-                $this->woowupStats['updated']++;
-            } catch (RequestException $e) {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
-                $sku = $product['sku'] ?? 'Product without sku';
-                if ($e->hasResponse()) {
-                    $response = $e->getResponse();
-                    $responseStatusCode = $response->getStatusCode();
-                    if ($responseStatusCode == 404) {
-                        try {
-                            $this->woowupClient->products->create($product);
-                            $this->logger->info("[Product] $sku Created Successfully");
-                            $this->logProductData($product);
-                            $this->woowupStats['created']++;
-                            continue;
-                        } catch (\Exception $e) {
-                            $this->logger->info("[Product] $sku Failed Creation");
+            $sku = $product['sku'] ?? 'Product without sku';
+            $errorCode = $errorMessage = null;
+
+            for ($attempt = 0; $attempt <= self::MAX_ATTR_STRIP_RETRIES; $attempt++) {
+                try {
+                    $this->woowupClient->products->update($product['sku'], $product);
+                    $this->logger->info("[Product] {$product['sku']} Updated Successfully");
+                    $this->logProductData($product);
+                    $this->woowupStats['updated']++;
+                    $errorCode = null;
+                    break;
+                } catch (RequestException $e) {
+                    $errorCode    = $e->getCode();
+                    $errorMessage = $e->getMessage();
+                    if ($e->hasResponse()) {
+                        $response = $e->getResponse();
+                        if ($response->getStatusCode() == 404) {
+                            try {
+                                $this->woowupClient->products->create($product);
+                                $this->logger->info("[Product] $sku Created Successfully");
+                                $this->logProductData($product);
+                                $this->woowupStats['created']++;
+                                continue 2;
+                            } catch (\Exception $createEx) {
+                                $this->logger->info("[Product] $sku Failed Creation");
+                            }
+                            break;
                         }
-                    }
-                    $body = json_decode((string) $response->getBody(),true);
-                    if ($body) {
-                        if (isset($body['code']) && !empty($body['code'])) {
+                        $body = json_decode((string) $response->getBody(), true);
+                        if ($body && isset($body['code']) && !empty($body['code'])) {
                             $errorCode = $body['code'];
-                            switch ($errorCode) {
-                                case 'internal_error':
-                                    $errorMessage = $body['message'] ?? '';
-                                    break;
-                                default:
-                                    $errors = $body['payload']['errors'] ?? [];
-                                    $errorMessage = is_array($errors) ? implode(';',$errors) : $errors;
-                                    break;
+                            if ($errorCode === 'internal_error') {
+                                $errorMessage = $body['message'] ?? '';
+                            } else {
+                                $errors = $body['payload']['errors'] ?? [];
+                                $errorMessage = is_array($errors) ? implode(';', $errors) : $errors;
                             }
                         }
                     }
+                } catch (\Exception $e) {
+                    $errorCode    = $e->getCode();
+                    $errorMessage = $e->getMessage();
+                    break;
                 }
-                $this->logger->info("[Product] $sku Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
-                $this->woowupStats['failed'][] = $product;
 
-            } catch (\Exception $e) {
-                $errorCode    = $e->getCode();
-                $errorMessage = $e->getMessage();
-                $sku = $product['sku'] ?? 'Product without sku';
+                $bloatingAttr = $this->extractBloatingAttribute((string) $errorMessage, array_keys($product['custom_attributes'] ?? []));
+                if ($bloatingAttr === null) {
+                    break;
+                }
+                $this->logger->info("[Product] {$sku} Schema limit — retrying without '{$bloatingAttr}'");
+                unset($product['custom_attributes'][$bloatingAttr]);
+            }
+
+            if ($errorCode !== null) {
                 $this->logger->info("[Product] $sku Error: Code '" . $errorCode . "', Message '" . $errorMessage . "'");
                 $this->woowupStats['failed'][] = $product;
             }
@@ -82,7 +92,7 @@ class WoowUpProductUploader implements StageInterface
         }
 
         return $processedProducts;
-	}
+    }
 
     public function logProductData($product)
     {
@@ -97,25 +107,47 @@ class WoowUpProductUploader implements StageInterface
         $this->logger->info(json_encode($productData,JSON_PRETTY_PRINT));
     }
 
-	public function getWoowupStats()
-	{
-		return $this->woowupStats;
-	}
+    public function getWoowupStats()
+    {
+        return $this->woowupStats;
+    }
 
-	public function resetWoowupStats()
-	{
-		$this->woowupStats = [
-			'created' => 0,
-	        'updated' => 0,
-	        'failed'  => [],
-		];
+    public function resetWoowupStats()
+    {
+        $this->woowupStats = [
+            'created' => 0,
+            'updated' => 0,
+            'failed'  => [],
+        ];
 
-		return $this;
-	}
+        return $this;
+    }
 
     public function setWoowUpStats($woowupStats)
     {
         $this->woowupStats = $woowupStats;
+    }
+
+    private function extractBloatingAttribute(string $errorMessage, array $existingAttrNames = []): ?string
+    {
+        if (strpos($errorMessage, 'extended attribute definition very long') === false) {
+            return null;
+        }
+        $separatorPos = strpos($errorMessage, ' :: ');
+        if ($separatorPos === false) {
+            return null;
+        }
+        $data = json_decode(substr($errorMessage, $separatorPos + 4), true);
+        foreach ($data['checkbox_breakdown'] ?? [] as $entry) {
+            $name = $entry['name'] ?? null;
+            if ($name === null) {
+                continue;
+            }
+            if (empty($existingAttrNames) || in_array($name, $existingAttrNames, true)) {
+                return $name;
+            }
+        }
+        return null;
     }
 
     public function retryFailed()
