@@ -70,7 +70,7 @@ class WoowUpCartUploader implements StageInterface
         try {
             if (!$this->woowupV2Client->users->exist($identity)) {
                 $customer = new UserModel();
-                $customer->setEmail($customerData['email']);
+                $customer->setEmail($customerData['email'], true);
                 if (!empty($customerData['first_name'])) {
                     $customer->setFirstName($customerData['first_name']);
                 }
