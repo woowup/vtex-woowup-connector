@@ -554,10 +554,16 @@ class VTEXConnector
 
         $this->_logger->info("Getting customers by $dateField from $fromDate to $toDate and dataEntity $dataEntity" . ($startPage > 1 ? " (starting from page $startPage)" : ""));
 
+        // Master Data evaluates date comparisons at day granularity and strictly:
+        // a profile created at 2026-05-26T20:05Z does NOT match createdIn>2026-05-26.
+        // Shift the lower bound back one day so $fromDate is inclusive; otherwise
+        // profiles created/updated on $fromDate itself are silently skipped.
+        $exclusiveFrom = date('Y-m-d', strtotime($fromDate . ' -1 day'));
+
         if ($dateField === 'createdIn') {
-            $where = "(createdIn<$toDate) AND (createdIn>$fromDate)";
+            $where = "(createdIn<$toDate) AND (createdIn>$exclusiveFrom)";
         } else {
-            $where = "((updatedIn<$toDate) AND (updatedIn>$fromDate)) OR ((updatedIn is null) AND (createdIn<$toDate) AND (createdIn>$fromDate))";
+            $where = "((updatedIn<$toDate) AND (updatedIn>$exclusiveFrom)) OR ((updatedIn is null) AND (createdIn<$toDate) AND (createdIn>$exclusiveFrom))";
         }
 
         $params = [
