@@ -123,6 +123,10 @@ class VTEXWoowUpCartMapper implements StageInterface
         if (strpos($url, 'http') === 0) {
             return $url;
         }
+        $storeUrl = $this->vtexConnector->getStoreUrl();
+        if ($storeUrl) {
+            return rtrim($storeUrl, '/') . '/checkout/cart/' . $url;
+        }
         $accountName = $cartdata['accountName'] ?? null;
         if (!$accountName) {
             return $url;
