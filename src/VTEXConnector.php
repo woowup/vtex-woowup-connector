@@ -1115,7 +1115,7 @@ class VTEXConnector
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         // VTEX returns 400 for transient SQL Server timeouts on catalog search
                         if (strpos($message, "Can't create search criteria!") !== false) {
-                            $this->_logger->info("VTEX transient timeout on 400, retrying. endpoint: " . $endpoint);
+                            $this->_logger->error("VTEX transient timeout on 400, retrying. endpoint: " . $endpoint);
                         } else {
                             throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
                         }
