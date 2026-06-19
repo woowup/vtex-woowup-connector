@@ -1113,7 +1113,12 @@ class VTEXConnector
                         $retryAfter = (int)($response->getHeader('Retry-After')[0] ?? 0);
                         sleep($retryAfter > 0 ? $retryAfter : self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
-                        throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                        // VTEX returns 400 for transient SQL Server timeouts on catalog search
+                        if (strpos($message, "Can't create search criteria!") !== false) {
+                            $this->_logger->error("VTEX transient timeout on 400, retrying. endpoint: " . $endpoint);
+                        } else {
+                            throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
+                        }
                     } elseif (in_array($response->getStatusCode(), [500, 502, 503, 504])) {
                         $text = is_string($decoded) ? $decoded : $body;
                         if (strpos($text, 'não encontrado') !== false) {
