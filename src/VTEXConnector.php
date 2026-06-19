@@ -708,19 +708,24 @@ class VTEXConnector
                         && $tokenRestarts < self::SCROLL_TOKEN_RESTART_LIMIT
                     ) {
                         $tokenRestarts++;
-                        $this->_logger->warning("VTEX scroll token expired on page $page (restart $tokenRestarts/" . self::SCROLL_TOKEN_RESTART_LIMIT . "), fast-forwarding to refresh cursor...");
+                        $this->_logger->error("VTEX scroll token expired on page $page (restart $tokenRestarts/" . self::SCROLL_TOKEN_RESTART_LIMIT . "), fast-forwarding to refresh cursor...");
                         unset($params['_token']);
-                        for ($warmup = 1; $warmup < $page; $warmup++) {
-                            $warmupResponse = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $warmup);
-                            $warmupToken = $warmupResponse->getHeader('X-VTEX-MD-TOKEN');
-                            if (!empty($warmupToken)) {
-                                $params['_token'] = $warmupToken[0];
-                            } else {
-                                unset($params['_token']);
+                        try {
+                            for ($warmup = 1; $warmup < $page; $warmup++) {
+                                $warmupResponse = $this->_getCustomersWithRetry('/api/dataentities/' . $dataEntity . '/scroll', $params, $requestHeaders, $warmup);
+                                $warmupToken = $warmupResponse->getHeader('X-VTEX-MD-TOKEN');
+                                if (!empty($warmupToken)) {
+                                    $params['_token'] = $warmupToken[0];
+                                } else {
+                                    unset($params['_token']);
+                                }
+                                $this->_logger->error("Token refresh fast-forward: page $warmup / " . ($page - 1));
                             }
-                            $this->_logger->info("Token refresh fast-forward: page $warmup / " . ($page - 1));
+                            $this->_logger->error("Token refreshed, retrying page $page");
+                        } catch (\Exception $warmupEx) {
+                            $this->_logger->error("Token refresh fast-forward failed on warmup: " . $warmupEx->getMessage() . ". Aborting restart.");
+                            throw $e;
                         }
-                        $this->_logger->info("Token refreshed, retrying page $page");
                     } else {
                         throw $e;
                     }
