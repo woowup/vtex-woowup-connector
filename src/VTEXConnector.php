@@ -25,6 +25,11 @@ class VTEXConnector
     const HISTORICAL_PRODUCTS_SEARCH_LIMIT =  500;
     const PRODUCTS_MAX_VALUE_FROM_PARAMETER = 2500;
 
+    // Default sales channel for product searches. The authenticated Search API without `sc`
+    // returns only the intersection of all channels (a cropped catalog), so we default to the
+    // main channel (1) when the account does not set `products_sales_channel` in its config.
+    const DEFAULT_PRODUCTS_SALES_CHANNEL = 1;
+
     const INVALID_VTEX_MAIL = 'ct.vtex.com.br';
     const DEFAULT_BRANCH_NAME = 'VTEX';
 
@@ -88,6 +93,8 @@ class VTEXConnector
     private $_allowedSellers;
     private $_syncCategories;
     private $_salesChannel;
+    private $_salesChannelId;
+    private $_salesChannelList;
 
     private $_categories;
 
@@ -118,6 +125,9 @@ class VTEXConnector
             $this->_httpClient     = $httpClient;
             $this->features        = $features;
             $this->_salesChannel   = isset($vtexConfig['salesChannel']) ? $this->getSalesChannel($vtexConfig['salesChannel']) : null;
+            // Raw backend sales channel id (before name conversion). Used as the products `sc`
+            // fallback, since the catalog Search API expects the numeric channel id, not its name.
+            $this->_salesChannelId = $vtexConfig['salesChannel'] ?? null;
             $this->accountConfig   = $accountConfig;
         } catch (\Exception $e) {
             $this->_logger->error("VTEX Service Error: " . $e->getMessage());
@@ -139,21 +149,92 @@ class VTEXConnector
     private function getSalesChannel($salesChannelFromConfig)
     {
         if (filter_var($salesChannelFromConfig, FILTER_VALIDATE_INT) !== false) {
-            try {
-                $response = $this->_get('/api/catalog_system/pvt/saleschannel/list');
-                $body = json_decode($response->getBody(), true);
-
-                // Search for the matching sales channel by ID
-                foreach ($body as $salesChannel) {
-                    if ($salesChannel['Id'] == $salesChannelFromConfig) {
-                        return $salesChannel['Name'];
-                    }
+            // Search for the matching sales channel by ID
+            foreach ($this->getSalesChannelList() as $salesChannel) {
+                if ($salesChannel['Id'] == $salesChannelFromConfig) {
+                    return $salesChannel['Name'];
                 }
-            } catch (\Exception $e) {
-                $this->_logger->error("VTEX Error retrieving sales channel list: " . $e->getMessage());
             }
         }
         return $salesChannelFromConfig;
+    }
+
+    /**
+     * Fetches the account's sales channel list once and caches it for the rest of the run.
+     *
+     * @return array list of sales channels ([{Id, Name, IsActive, ...}]); empty array on error
+     */
+    private function getSalesChannelList()
+    {
+        if ($this->_salesChannelList === null) {
+            try {
+                $response = $this->_get('/api/catalog_system/pvt/saleschannel/list');
+                $this->_salesChannelList = json_decode($response->getBody(), true) ?: [];
+            } catch (\Exception $e) {
+                $this->_logger->error("VTEX Error retrieving sales channel list: " . $e->getMessage());
+                $this->_salesChannelList = [];
+            }
+        }
+        return $this->_salesChannelList;
+    }
+
+    /**
+     * Resolves the backend integration sales channel ("cajita") to its numeric id, since the
+     * field may hold either a numeric id (e.g. "4") or a channel name (e.g. "Main"), while the
+     * catalog Search API expects the numeric id.
+     *
+     * @return int|null the numeric sales channel id, or null if unset/empty/unresolvable
+     */
+    private function resolveBackendSalesChannelId()
+    {
+        $raw = $this->_salesChannelId;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (filter_var($raw, FILTER_VALIDATE_INT) > 0) {
+            return (int) $raw;
+        }
+
+        // It's a name (e.g. "Main") -> look up its id in the sales channel list
+        foreach ($this->getSalesChannelList() as $salesChannel) {
+            if (isset($salesChannel['Name']) && strcasecmp($salesChannel['Name'], $raw) === 0) {
+                return $salesChannel['Id'];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolves the sales channel id to use for product (catalog) searches, with priority:
+     *   1. products_sales_channel from the account config (config/vtex.php).
+     *   2. the backend integration sales channel ("cajita"), resolved to its numeric id
+     *      (the field may hold either an id like "4" or a name like "Main").
+     *   3. the default channel (1).
+     *
+     * The authenticated Search API without `sc` returns only the intersection of all channels
+     * (a cropped catalog), so a channel is always resolved.
+     *
+     * @param string $context label used only for logging which search is resolving the channel
+     * @return int|string the sales channel id to send as `sc`
+     */
+    private function resolveProductsSalesChannel($context)
+    {
+        $configuredSalesChannel = $this->accountConfig['products_sales_channel'] ?? null;
+        if ($configuredSalesChannel !== null) {
+            $this->_logger->info("Using configured sales channel: $configuredSalesChannel for $context");
+            return $configuredSalesChannel;
+        }
+
+        $backendSalesChannelId = $this->resolveBackendSalesChannelId();
+        if ($backendSalesChannelId !== null) {
+            $this->_logger->info("No products_sales_channel configured, using backend sales channel: {$this->_salesChannelId} (id $backendSalesChannelId) for $context");
+            return $backendSalesChannelId;
+        }
+
+        $this->_logger->info("No sales channel configured, using default: " . self::DEFAULT_PRODUCTS_SALES_CHANNEL . " for $context");
+        return self::DEFAULT_PRODUCTS_SALES_CHANNEL;
     }
 
     /**
@@ -336,10 +417,7 @@ class VTEXConnector
 
         $totalProductsRetrieved = 0;
 
-        $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
-        if ($salesChannel) {
-            $this->_logger->info("Using sales channel: $salesChannel for products search");
-        }
+        $salesChannel = $this->resolveProductsSalesChannel('products search');
 
         $this->_logger->info("Getting category leaves");
         $categoryLeaves = $this->getCategoryLeaves(['children' => $categoryTree, 'id' => '']);
@@ -414,7 +492,7 @@ class VTEXConnector
             $this->populateCategories();
 
             $params = ['fq' => "skuId:$skuId"];
-            $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
+            $salesChannel = $this->resolveProductsSalesChannel('single product search');
             if ($salesChannel) {
                 $params['sc'] = $salesChannel;
             }
@@ -444,6 +522,10 @@ class VTEXConnector
 
     protected function getSkuIdList()
     {
+        // Historical SKU list intentionally does NOT use resolveProductsSalesChannel(): it only
+        // filters by channel when the account has an explicit products_sales_channel in config,
+        // otherwise it keeps pulling every SKU (all channels), as before. Narrowing the historical
+        // load to a single resolved/default channel is pending review (see PR discussion).
         $salesChannel = $this->accountConfig['products_sales_channel'] ?? null;
 
         $endpoint = $salesChannel
