@@ -95,6 +95,7 @@ class VTEXConnector
     private $_salesChannel;
     private $_salesChannelId;
     private $_salesChannelList;
+    private $_skipProductsSalesChannel = false;
 
     private $_categories;
 
@@ -235,6 +236,59 @@ class VTEXConnector
 
         $this->_logger->info("No sales channel configured, using default: " . self::DEFAULT_PRODUCTS_SALES_CHANNEL . " for $context");
         return self::DEFAULT_PRODUCTS_SALES_CHANNEL;
+    }
+
+    /**
+     * Runs a catalog products search, dropping the `sc` (sales channel) filter and retrying once
+     * if VTEX rejects the resolved channel for this account.
+     *
+     * Some accounts (typically B2B tenants) reject the configured `sc` with HTTP 401
+     * "sc N is not available for account ..." (or 400 "sc is inactive") even when the channel is
+     * listed as active in /saleschannel/list, because the catalog host is bound to a different
+     * channel. Failing the whole products run over this is worse than fetching the catalog without
+     * the channel filter, so we drop `sc`, retry, and skip it for the rest of the run (the flag
+     * avoids paying a double request on every category leaf once we know it's rejected).
+     *
+     * @param  array $params query params for /api/catalog_system/pub/products/search (may include 'sc')
+     * @return \Psr\Http\Message\ResponseInterface
+     */
+    private function productsSearch(array $params)
+    {
+        if ($this->_skipProductsSalesChannel) {
+            unset($params['sc']);
+        }
+
+        try {
+            return $this->_get('/api/catalog_system/pub/products/search', $params);
+        } catch (\Exception $e) {
+            if (isset($params['sc']) && $this->isUnavailableSalesChannelError($e)) {
+                $this->_logger->warning("VTEX rejected sales channel {$params['sc']} ({$e->getMessage()}); retrying products search without sc for the rest of the run");
+                $this->_skipProductsSalesChannel = true;
+                unset($params['sc']);
+                return $this->_get('/api/catalog_system/pub/products/search', $params);
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Tells whether an exception from a products search is VTEX rejecting the requested sales
+     * channel (401 "sc N is not available ..." / 400 "sc is inactive"), as opposed to any other
+     * request error.
+     *
+     * @param  \Exception $e exception thrown by the catalog request
+     * @return bool true when the channel filter should be dropped and the search retried
+     */
+    private function isUnavailableSalesChannelError(\Exception $e)
+    {
+        $code = $e->getCode();
+        if ($code !== 401 && $code !== 400) {
+            return false;
+        }
+
+        $message = strtolower($e->getMessage());
+        return strpos($message, 'sc') !== false
+            && (strpos($message, 'not available') !== false || strpos($message, 'is inactive') !== false);
     }
 
     /**
@@ -430,7 +484,7 @@ class VTEXConnector
                 if ($salesChannel) {
                     $params['sc'] = $salesChannel;
                 }
-                $response = $this->_get('/api/catalog_system/pub/products/search', $params);
+                $response = $this->productsSearch($params);
 
                 if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                     throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -453,7 +507,7 @@ class VTEXConnector
             if ($salesChannel) {
                 $params['sc'] = $salesChannel;
             }
-            $response = $this->_get('/api/catalog_system/pub/products/search', $params);
+            $response = $this->productsSearch($params);
 
             if (($response->getStatusCode() !== 200) && ($response->getStatusCode() !== 206)) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
@@ -496,7 +550,7 @@ class VTEXConnector
             if ($salesChannel) {
                 $params['sc'] = $salesChannel;
             }
-            $response = $this->_get('/api/catalog_system/pub/products/search', $params);
+            $response = $this->productsSearch($params);
 
             if ($response->getStatusCode() !== 200) {
                 throw new \Exception($response->getReasonPhrase(), $response->getStatusCode());
