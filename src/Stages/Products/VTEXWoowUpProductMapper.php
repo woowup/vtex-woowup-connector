@@ -11,6 +11,7 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
     protected $onlyMapsParentProducts;
     protected const PRODUCT_WITHOUT_LIST_PRICE = 0;
     protected $stockAndPriceRealTime;
+    protected $mapsSkuSpecifications;
     protected const DIVIDE_FACTOR = 100;
 
     public function __construct($vtexConnector, $stockAndPriceRealTime = false)
@@ -18,6 +19,9 @@ abstract class VTEXWoowUpProductMapper implements StageInterface
         $this->vtexConnector = $vtexConnector;
         $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
         $this->stockAndPriceRealTime = $stockAndPriceRealTime;
+
+        $accountConfig = $this->vtexConnector->getAccountConfig() ?? [];
+        $this->mapsSkuSpecifications = (bool) ($accountConfig['map_sku_specifications'] ?? false);
 
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
         $this->vtexConnector->_logger->info($productsLog);
