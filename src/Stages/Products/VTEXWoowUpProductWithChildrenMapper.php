@@ -30,6 +30,16 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
             $baseProduct['custom_attributes'] = $customAttributes;
         }
 
+        if ($this->mapsSkuSpecifications && isset($vtexBaseProduct->skuSpecifications) && !empty($vtexBaseProduct->skuSpecifications)) {
+            foreach ($vtexBaseProduct->skuSpecifications as $specification) {
+                $values = [];
+                foreach ($specification->values as $value) {
+                    $values[] = $value->name;
+                }
+                $baseProduct['custom_attributes'][$specification->field->name] = $values;
+            }
+        }
+
         foreach ($vtexBaseProduct->items as $vtexProduct) {
             if (!$this->hasSku($vtexProduct)) {
                 continue;
