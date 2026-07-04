@@ -8,6 +8,12 @@ use WoowUpV2\Models\AbandonedCartModel;
 
 class VTEXWoowUpCartMapper implements StageInterface
 {
+    /**
+     * Campo del payload de VTEX con la fecha real de la última sesión del carrito,
+     * en ISO 8601 con offset (ej: "2026-07-02T20:09:17+00:00").
+     */
+    const LAST_SESSION_DATE_FIELD = 'rclastsessiondate';
+
     private $vtexConnector;
     private $logger;
 
@@ -35,7 +41,7 @@ class VTEXWoowUpCartMapper implements StageInterface
         $cart->setEmail($cartdata['email']);
         $cart->setExternalId(substr(md5($cartdata['email'] . ($cartdata['rclastcart'] ?? '')), 0, 20));
         $cart->setTotalPrice((float) ($cartdata['rclastcartvalue'] ?? 0));
-        $cart->setCreatetime(date('c'));
+        $cart->setCreatetime($this->resolveCreatetime($cartdata));
         $recoverUrl = $this->buildRecoverUrl($cartdata);
         if ($recoverUrl) {
             $cart->setRecoverUrl($recoverUrl);
@@ -76,6 +82,19 @@ class VTEXWoowUpCartMapper implements StageInterface
             'cart'     => $cart,
             'customer' => $this->buildCustomer($cartdata),
         ];
+    }
+
+    /**
+     * Usa la fecha real de la última sesión del carrito (rclastsessiondate) como createtime,
+     * para reflejar el momento del abandono y no el momento en que el worker procesa el mensaje.
+     * El valor ya viene en ISO 8601 con offset, mismo formato que espera setCreatetime.
+     * Si el payload no lo trae, cae a la hora actual.
+     */
+    private function resolveCreatetime(array $cartdata): string
+    {
+        return !empty($cartdata[self::LAST_SESSION_DATE_FIELD])
+            ? $cartdata[self::LAST_SESSION_DATE_FIELD]
+            : date('c');
     }
 
     private function resolveSkuRefId($numericSkuId, int $appId): ?string
