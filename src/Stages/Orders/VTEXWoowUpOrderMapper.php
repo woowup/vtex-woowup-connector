@@ -14,6 +14,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
     const DISABLED_REASON_OTHER  = 'other';
     const INVALID_EMAILS         = ['ct.vtex.com.br', 'mercadolibre.com'];
     const MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS = 5;
+    // En órdenes de retiro en tienda VTEX carga en shippingData.address la dirección del LOCAL
+    // (addressType 'pickup'), no la del cliente. Se usa para no persistir esa dirección en el perfil.
+    const ADDRESS_TYPE_PICKUP    = 'pickup';
 
     protected $importing;
     protected $notifier;
@@ -157,8 +160,15 @@ class VTEXWoowUpOrderMapper implements StageInterface
             }
         }
 
-        // Tomo datos de ubicación desde shippingData
-        if (isset($vtexOrder->shippingData) && isset($vtexOrder->shippingData->address) && !empty($vtexOrder->shippingData->address)) {
+        // Tomo datos de ubicación desde shippingData, salvo en órdenes de retiro en tienda:
+        // ahí VTEX carga la dirección del LOCAL (addressType 'pickup'), no la del cliente, y la
+        // persistiríamos pisando la dirección real del perfil. Solo mapeo la dirección cuando NO es
+        // un retiro (envíos traen la dirección real: addressType 'residential'/'commercial'/etc.).
+        if (
+            isset($vtexOrder->shippingData->address) &&
+            !empty($vtexOrder->shippingData->address) &&
+            (($vtexOrder->shippingData->address->addressType ?? null) !== self::ADDRESS_TYPE_PICKUP)
+        ) {
             $address = $vtexOrder->shippingData->address;
             $customer += [
                 'postcode' => $address->postalCode,
@@ -167,7 +177,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
                 'country'  => $address->country,
                 'street'   => ucwords(mb_strtolower(trim(trim($address->street) . " " . trim($address->number)))),
             ];
-        }       
+        }
 
         return $customer;
     }
