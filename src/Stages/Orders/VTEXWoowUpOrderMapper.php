@@ -348,15 +348,19 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $payment['installments'] = (int) $vtexPayment->installments;
         }
 
+        // Without firstDigits there is no BIN to look up, so the payment method name
+        // reported by VTEX is the only brand available for this payment
+        if (!isset($payment['first_digits'])
+            && isset($vtexPayment->paymentSystemName)
+            && (trim($vtexPayment->paymentSystemName) !== "")) {
+            $payment['brand'] = trim($vtexPayment->paymentSystemName);
+        }
+
         $bank = $vtexPayment->connectorResponses->issuer ?? null;
 
         if (!$bank) {
             $this->logger->info("Payment bank not available");
             return $payment;
-        }
-
-        if (isset($vtexPayment->paymentSystemName) && (trim($vtexPayment->paymentSystemName) !== "")) {
-            $payment['brand'] = trim($vtexPayment->paymentSystemName);
         }
 
         $payment['bank'] = $bank;
