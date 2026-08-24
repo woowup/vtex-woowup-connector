@@ -11,7 +11,7 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     const COMMUNICATION_ENABLED = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER = 'other';
-    const INVALID_EMAILS = ['ct.vtex.com.br', 'mercadolibre.com'];
+    const INVALID_EMAILS = ['ct.vtex.com.br', 'mail.mercadolibre.com'];
 
     protected $vtexConnector;
     protected $logger;

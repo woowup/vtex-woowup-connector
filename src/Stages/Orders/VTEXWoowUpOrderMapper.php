@@ -12,7 +12,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     const COMMUNICATION_ENABLED  = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER  = 'other';
-    const INVALID_EMAILS         = ['ct.vtex.com.br', 'mercadolibre.com'];
+    const INVALID_EMAILS         = ['ct.vtex.com.br', 'mail.mercadolibre.com'];
     const MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS = 5;
     // En órdenes de retiro en tienda VTEX carga en shippingData.address la dirección del LOCAL
     // (addressType 'pickup'), no la del cliente. Se usa para no persistir esa dirección en el perfil.
