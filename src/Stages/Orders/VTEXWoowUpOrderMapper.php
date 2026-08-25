@@ -12,7 +12,6 @@ class VTEXWoowUpOrderMapper implements StageInterface
     const COMMUNICATION_ENABLED  = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER  = 'other';
-    const INVALID_EMAILS         = ['ct.vtex.com.br', 'mail.mercadolibre.com'];
     const MAX_PERCENTAGE_BAD_CATALOGING_PRODUCTS = 5;
     // En órdenes de retiro en tienda VTEX carga en shippingData.address la dirección del LOCAL
     // (addressType 'pickup'), no la del cliente. Se usa para no persistir esa dirección en el perfil.
@@ -149,15 +148,6 @@ class VTEXWoowUpOrderMapper implements StageInterface
         $email = $this->vtexConnector->unmaskEmail($vtexOrder->clientProfileData->email);
         if (!empty($email) && !str_contains($email, 'unavailable')) {
             $customer['email'] = $email;
-            foreach (self::INVALID_EMAILS as $invalidEmail) {
-                if (stripos($customer['email'], $invalidEmail) !== false) {
-                    if (isset($customer['document'])) {
-                        $customer['email'] = $customer['document'] . '@noemail.com';
-                    }
-                    $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                    $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                }
-            }
         }
 
         // Tomo datos de ubicación desde shippingData, salvo en órdenes de retiro en tienda:
