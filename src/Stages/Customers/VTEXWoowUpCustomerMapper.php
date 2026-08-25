@@ -11,7 +11,6 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     const COMMUNICATION_ENABLED = 'enabled';
     const COMMUNICATION_DISABLED = 'disabled';
     const DISABLED_REASON_OTHER = 'other';
-    const INVALID_EMAILS = ['ct.vtex.com.br', 'mercadolibre.com'];
 
     protected $vtexConnector;
     protected $logger;
@@ -87,18 +86,6 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                     $customer['mailing_enabled'] = self::COMMUNICATION_ENABLED;
                     $customer['sms_enabled'] = self::COMMUNICATION_ENABLED;
                     $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
-                }
-            }
-
-            if (isset($customer['email'])) {
-                foreach (self::INVALID_EMAILS as $email) {
-                    if (stripos($customer['email'], $email) !== false) {
-                        $customer['email'] = array_key_exists('document', $customer)
-                            ? $customer['document'] . '@noemail.com'
-                            : 'noemail@noemail.com';
-                        $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
-                        $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
-                    }
                 }
             }
 
