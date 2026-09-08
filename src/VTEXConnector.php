@@ -74,6 +74,8 @@ class VTEXConnector
 
     const MAX_REQUEST_ATTEMPTS = 25;
 
+    const COLLECTIONS_PAGE_SIZE = 50;
+
     const DEFAULT_SLEEP_SEC = 2;
     const MAX_SLEEP_SEC = 60;
     const TOO_MANY_REQUESTS_SLEEP_SEC = 60;
@@ -98,6 +100,7 @@ class VTEXConnector
     private $_skipProductsSalesChannel = false;
 
     private $_categories;
+    private $_collections = null;
 
     private $_httpClient;
     public $_logger;
@@ -1340,6 +1343,75 @@ class VTEXConnector
     protected function _post($endpoint, $queryParams = [], $headers = [], $json = [])
     {
         return $this->_request('POST', $endpoint, $queryParams, $headers, $json);
+    }
+
+    /**
+     * Colecciones (clusters) de la cuenta, como mapa `clusterId => nombre`.
+     *
+     * Los items de un pedido traen los ids de cluster en `additionalInfo.productClusterId` pero no
+     * sus nombres, y `name` es obligatorio en el campo nativo `collection` de la API de WoowUp. Este
+     * es el unico endpoint que da la correspondencia id -> nombre para toda la cuenta, y en una sola
+     * pasada: son ~5 requests para un catalogo tipico, contra una consulta por producto si se
+     * resolviera desde el catalogo de productos.
+     *
+     * Se piden una sola vez por corrida y se memoizan: no cambian mientras el proceso vive.
+     *
+     * El mapa sale ordenado por clusterId a proposito. El orden en que se emiten las colecciones
+     * dentro de la venta se hereda de aca, y el payload completo se hashea para la cache de ventas:
+     * si dependiera del orden en que responde VTEX, el hash oscilaria y se re-postearia cada venta en
+     * cada corrida.
+     *
+     * Nunca lanza: ante cualquier fallo devuelve lo que haya juntado, y las ventas salen sin
+     * colecciones en vez de romper la corrida.
+     *
+     * @return array `[clusterId => nombre]`
+     */
+    public function getCollections(): array
+    {
+        if ($this->_collections !== null) {
+            return $this->_collections;
+        }
+
+        $this->_collections = [];
+        $page  = 1;
+        $pages = 1;
+
+        do {
+            try {
+                $response = $this->_get('/api/catalog_system/pvt/collection/search', [
+                    'page'     => $page,
+                    'pageSize' => self::COLLECTIONS_PAGE_SIZE,
+                ]);
+
+                if ($response->getStatusCode() !== 200) {
+                    $this->_logger->info("Could not fetch collections page $page: HTTP " . $response->getStatusCode());
+                    break;
+                }
+
+                $body = json_decode($response->getBody(), true);
+                if (!is_array($body) || !isset($body['items']) || !is_array($body['items'])) {
+                    $this->_logger->info("Unexpected collections payload on page $page");
+                    break;
+                }
+
+                foreach ($body['items'] as $collection) {
+                    if (!is_array($collection) || !isset($collection['id'], $collection['name'])) {
+                        continue;
+                    }
+                    $this->_collections[(string) $collection['id']] = (string) $collection['name'];
+                }
+
+                $pages = (int) ($body['paging']['pages'] ?? 1);
+            } catch (\Throwable $e) {
+                $this->_logger->error("Error fetching collections page $page: " . $e->getMessage());
+                break;
+            }
+        } while (++$page <= $pages);
+
+        ksort($this->_collections, SORT_NATURAL);
+        $this->_logger->info("Fetched " . count($this->_collections) . " collections");
+
+        return $this->_collections;
     }
 
     public function getAccountConfig()

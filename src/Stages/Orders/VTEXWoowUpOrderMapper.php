@@ -25,6 +25,7 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected $vtexConnector;
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
+    protected $nativeFieldsEnabled;
 
     public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $countOrders = 0)
     {
@@ -36,6 +37,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
         $this->countOrders   = $countOrders;
         $this->badCatalogingProductsIds = [];
         $this->onlyMapsParentProducts = !VTEXConfig::mapsChildProducts($this->vtexConnector->getAppId());
+
+        $accountConfig = $this->vtexConnector->getAccountConfig() ?? [];
+        $this->nativeFieldsEnabled = !empty($accountConfig['native_fields_enabled']);
 
         $interruptLog = "Interrupting bad cataloging: " . ($this->interruptBadCataloging ? "Yes" : "No");
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
@@ -110,7 +114,86 @@ class VTEXWoowUpOrderMapper implements StageInterface
             }
         }
 
-        return $this->cleanArray($order);
+        $order = $this->cleanArray($order);
+
+        return $this->addNativeFields($order, $vtexOrder);
+    }
+
+    /**
+     * Agrega los campos nativos `promotion` y `collection` de la API v3.
+     *
+     * Corre despues de cleanArray() a proposito: deja `promotion` como ultima clave de la raiz y
+     * `collection` como ultima de cada item, de forma que su posicion no dependa de que campos
+     * opcionales trajo la orden. El payload completo se hashea para la cache de ventas, asi que un
+     * orden de claves inestable significaria re-postear cada venta en cada corrida. Ademas evita que
+     * cleanArray() vacie un `name` o deje huecos numericos en la lista, que json_encode serializaria
+     * como objeto y el endpoint rechazaria.
+     *
+     * Nunca se emite una lista vacia: cambiaria el hash sin aportar nada.
+     */
+    private function addNativeFields(array $order, $vtexOrder): array
+    {
+        if (!$this->nativeFieldsEnabled) {
+            return $order;
+        }
+
+        $promotions = PurchaseNativeFields::promotions(
+            $vtexOrder->ratesAndBenefitsData->rateAndBenefitsIdentifiers ?? []
+        );
+
+        if (!empty($promotions)) {
+            $order['promotion'] = $promotions;
+        }
+
+        $order['purchase_detail'] = $this->addCollections(
+            $order['purchase_detail'] ?? [],
+            $vtexOrder->items ?? []
+        );
+
+        return $order;
+    }
+
+    /**
+     * Agrega `collection` a cada item, emparejando por posicion con los items de VTEX.
+     *
+     * buildOrderDetails() recorre $items en orden, asi que la correspondencia es 1:1. Deja de serlo
+     * si el blacklist de SKUs saltea items o si una cuenta sobreescribe buildOrderDetails() sin
+     * llamar a parent (hoy: Pilatos y Distrinando). En ese caso no se adivina: la venta va sin
+     * colecciones, que es preferible a colgarle a un producto las colecciones de otro.
+     */
+    private function addCollections(array $purchaseDetail, $vtexItems): array
+    {
+        if (empty($purchaseDetail)) {
+            return $purchaseDetail;
+        }
+
+        if (!is_array($vtexItems) || count($vtexItems) !== count($purchaseDetail)) {
+            $this->logger->info("Skipping native collections: purchase_detail does not align with VTEX items");
+
+            return $purchaseDetail;
+        }
+
+        // Los items traen los ids de cluster pero no los nombres; el mapa de la cuenta los resuelve y
+        // se pide una sola vez por corrida. Si no se pudo traer, las ventas salen sin colecciones.
+        $collectionNames = $this->vtexConnector->getCollections();
+        if (empty($collectionNames)) {
+            return $purchaseDetail;
+        }
+
+        $vtexItems = array_values($vtexItems);
+
+        foreach (array_keys($purchaseDetail) as $position => $key) {
+            $collections = PurchaseNativeFields::collections(
+                $vtexItems[$position]->additionalInfo->productClusterId ?? null,
+                $collectionNames
+            );
+
+            if (!empty($collections)) {
+                $purchaseDetail[$key]['collection'] = $collections;
+            }
+        }
+
+        return $purchaseDetail;
     }
 
     private function cleanArray($array)
