@@ -252,6 +252,27 @@ class VTEXWoowUpOrderMapper implements StageInterface
             ];
         }
 
+
+        // Opt-in de la venta. Va sólo para que el perfil NO nazca con los tres canales prendidos
+        // cuando la venta es la que lo crea; si el cliente ya existe, el uploader descarta estos
+        // campos y manda el módulo de clientes, que lee la fuente autoritativa (Master Data).
+        //
+        // ⚠️ `optinNewsLetter` es la casilla de ESE checkout, no el estado del cliente: medido contra
+        // Master Data en 1361, 11 de 12 coinciden y 1 difiere. Por eso no se escribe en cada corrida.
+        if (isset($vtexOrder->clientPreferencesData->optinNewsLetter)) {
+            $optIn = (bool) $vtexOrder->clientPreferencesData->optinNewsLetter;
+
+            $customer['mailing_enabled']  = $optIn ? self::COMMUNICATION_ENABLED : self::COMMUNICATION_DISABLED;
+            $customer['sms_enabled']      = $customer['mailing_enabled'];
+            $customer['whatsapp_enabled'] = $customer['mailing_enabled'];
+
+            if (!$optIn) {
+                $customer['mailing_enabled_reason']  = self::DISABLED_REASON_OTHER;
+                $customer['sms_enabled_reason']      = self::DISABLED_REASON_OTHER;
+                $customer['whatsapp_enabled_reason'] = self::DISABLED_REASON_OTHER;
+            }
+        }
+
         return $customer;
     }
 

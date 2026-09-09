@@ -14,13 +14,17 @@ class VTEXWoowUpCartMapper implements StageInterface
      */
     const LAST_SESSION_DATE_FIELD = 'rclastsessiondate';
 
+    const COMMUNICATION_ENABLED = 'enabled';
+
     private $vtexConnector;
     private $logger;
+    private $ignoreOptIn;
 
-    public function __construct($vtexConnector, $logger)
+    public function __construct($vtexConnector, $logger, $ignoreOptIn = false)
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger        = $logger;
+        $this->ignoreOptIn   = $ignoreOptIn;
     }
 
     public function __invoke($cartdata)
@@ -32,6 +36,10 @@ class VTEXWoowUpCartMapper implements StageInterface
         $quantities = $this->parseQuantities($cartdata['rclastcart'] ?? '');
         if (empty($quantities)) {
             $this->logger->info('No parseable SKU quantities in rclastcart.');
+            return null;
+        }
+
+        if (!$this->hasOptIn($cartdata)) {
             return null;
         }
 
@@ -130,7 +138,55 @@ class VTEXWoowUpCartMapper implements StageInterface
             $customer['document'] = $cartdata['document'];
         }
 
+        // Si la cuenta ignora el opt-in, el cliente se arma como siempre y no se escribe ningún canal.
+        if ($this->ignoreOptIn) {
+            return $customer;
+        }
+
+        // Acá ya sabemos que hay opt-in: hasOptIn() cortó el carrito si no lo había.
+        $customer['mailing_enabled']  = self::COMMUNICATION_ENABLED;
+        $customer['sms_enabled']      = self::COMMUNICATION_ENABLED;
+        $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
+
         return $customer;
+    }
+
+    /**
+     * ¿Se le puede mandar un carrito abandonado a esta persona?
+     *
+     * Regla de negocio (Chris, 04-09-2026): *"no podemos mandar un carrito a alguien que no tiene
+     * opt-in"*. Así que el carrito no se sube salvo que la tienda diga que SÍ.
+     *
+     * El opt-in **no viene en el mensaje del worker**: el `cartdata` trae los campos del carrito
+     * (`rclastcart`, `rclastcartvalue`, `rclastsessiondate`) y los datos de contacto, nada más. Hay
+     * que ir a buscarlo a Master Data.
+     *
+     * `null` —no hay perfil, o la consulta falló— cuenta como **no**: no saber que lo dio no es
+     * tenerlo. Se loguea aparte del "no" explícito porque son casos distintos y el segundo es el que
+     * puede tirar carritos que hoy sí se suben.
+     */
+    private function hasOptIn(array $cartdata): bool
+    {
+        if ($this->ignoreOptIn) {
+            return true;
+        }
+
+        if (empty($cartdata['email'])) {
+            $this->logger->info('[OptIn] Cart skipped: no email to resolve the opt-in with.');
+            return false;
+        }
+
+        $optIn = $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
+
+        if ($optIn === true) {
+            return true;
+        }
+
+        $this->logger->info($optIn === false
+            ? '[OptIn] Cart skipped: the customer has no newsletter opt-in.'
+            : '[OptIn] Cart skipped: could not determine the opt-in (no Master Data profile).');
+
+        return false;
     }
 
     private function buildRecoverUrl(array $cartdata): ?string

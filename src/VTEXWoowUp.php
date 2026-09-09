@@ -469,7 +469,7 @@ class VTEXWoowUp
     public function importAbandonedCart(array $cartdata, $woowupV2Client, bool $debug = false): bool
     {
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCartMapper($this->vtexConnector, $this->logger));
+            $this->setMapStage(new VTEXWoowUpCartMapper($this->vtexConnector, $this->logger, $this->ignoreOptIn));
         }
 
         if (!$this->uploadStage) {

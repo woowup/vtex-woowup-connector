@@ -683,6 +683,42 @@ class VTEXConnector
         } while (((100 * $page) < $totalCustomers) && !empty(json_decode($response->getBody())));
     }
 
+    /**
+     * Opt-in de newsletter del cliente, buscado por email en Master Data.
+     *
+     * Devuelve true/false cuando el perfil existe y trae el campo, y **null cuando no se pudo
+     * determinar** (no hay perfil, la entidad no expone el campo, o la consulta falló). El null es
+     * información, no un error: quien llama decide qué hacer con "no sé", y no puede confundirlo con
+     * un "no" — son cosas distintas.
+     *
+     * Filtra pasando el campo como query param, igual que getCustomerFromId() con userId. Con
+     * `_where` sobre campos privados Master Data responde 403 "Cannot filter by private fields".
+     */
+    public function getNewsletterOptInByEmail($email): ?bool
+    {
+        if (empty($email)) {
+            return null;
+        }
+
+        try {
+            $response = $this->_get('/api/dataentities/CL/search', [
+                '_fields' => 'email,isNewsletterOptIn',
+                'email'   => $email,
+            ]);
+        } catch (\Exception $e) {
+            $this->_logger->info("Error getting newsletter opt-in for $email: " . $e->getMessage());
+            return null;
+        }
+
+        $documents = json_decode($response->getBody(), true);
+
+        if (empty($documents[0]) || !array_key_exists('isNewsletterOptIn', $documents[0])) {
+            return null;
+        }
+
+        return (bool) $documents[0]['isNewsletterOptIn'];
+    }
+
     public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn', $startPage = 1)
     {
         if($toDate === null){
