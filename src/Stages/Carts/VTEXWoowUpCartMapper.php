@@ -39,7 +39,9 @@ class VTEXWoowUpCartMapper implements StageInterface
             return null;
         }
 
-        if (!$this->hasOptIn($cartdata)) {
+        $optIn = $this->optInEnforced() ? $this->resolveOptIn($cartdata) : null;
+
+        if ($this->optInEnforced() && $optIn !== true) {
             return null;
         }
 
@@ -88,7 +90,7 @@ class VTEXWoowUpCartMapper implements StageInterface
 
         return [
             'cart'     => $cart,
-            'customer' => $this->buildCustomer($cartdata),
+            'customer' => $this->buildCustomer($cartdata, $optIn),
         ];
     }
 
@@ -121,7 +123,7 @@ class VTEXWoowUpCartMapper implements StageInterface
         }
     }
 
-    private function buildCustomer(array $cartdata): ?array
+    private function buildCustomer(array $cartdata, ?bool $optIn): ?array
     {
         if (empty($cartdata['email'])) {
             return null;
@@ -138,55 +140,52 @@ class VTEXWoowUpCartMapper implements StageInterface
             $customer['document'] = $cartdata['document'];
         }
 
-        // Si la cuenta ignora el opt-in, el cliente se arma como siempre y no se escribe ningún canal.
-        if ($this->ignoreOptIn) {
-            return $customer;
+        // Con el valor resuelto arriba, no con una suposición sobre que el corte ya corrió. Si la
+        // cuenta ignora el opt-in llega null y no se escribe ningún canal.
+        if ($optIn === true) {
+            $customer['mailing_enabled']  = self::COMMUNICATION_ENABLED;
+            $customer['sms_enabled']      = self::COMMUNICATION_ENABLED;
+            $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
         }
-
-        // Acá ya sabemos que hay opt-in: hasOptIn() cortó el carrito si no lo había.
-        $customer['mailing_enabled']  = self::COMMUNICATION_ENABLED;
-        $customer['sms_enabled']      = self::COMMUNICATION_ENABLED;
-        $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
 
         return $customer;
     }
 
+    /** ¿Esta cuenta delega el opt-in en la tienda? Si no, el carrito se sube como siempre. */
+    private function optInEnforced(): bool
+    {
+        return !$this->ignoreOptIn;
+    }
+
     /**
-     * ¿Se le puede mandar un carrito abandonado a esta persona?
-     *
      * Regla de negocio (Chris, 04-09-2026): *"no podemos mandar un carrito a alguien que no tiene
-     * opt-in"*. Así que el carrito no se sube salvo que la tienda diga que SÍ.
+     * opt-in"*. El carrito no se sube salvo que la tienda diga que SÍ.
      *
      * El opt-in **no viene en el mensaje del worker**: el `cartdata` trae los campos del carrito
      * (`rclastcart`, `rclastcartvalue`, `rclastsessiondate`) y los datos de contacto, nada más. Hay
-     * que ir a buscarlo a Master Data.
+     * que ir a buscarlo a Master Data — un request por carrito, así que el valor se resuelve una
+     * sola vez y se reusa.
      *
      * `null` —no hay perfil, o la consulta falló— cuenta como **no**: no saber que lo dio no es
      * tenerlo. Se loguea aparte del "no" explícito porque son casos distintos y el segundo es el que
      * puede tirar carritos que hoy sí se suben.
      */
-    private function hasOptIn(array $cartdata): bool
+    private function resolveOptIn(array $cartdata): ?bool
     {
-        if ($this->ignoreOptIn) {
-            return true;
-        }
-
         if (empty($cartdata['email'])) {
             $this->logger->info('[OptIn] Cart skipped: no email to resolve the opt-in with.');
-            return false;
+            return null;
         }
 
         $optIn = $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
 
-        if ($optIn === true) {
-            return true;
+        if ($optIn !== true) {
+            $this->logger->info($optIn === false
+                ? '[OptIn] Cart skipped: the customer has no newsletter opt-in.'
+                : '[OptIn] Cart skipped: could not determine the opt-in (no Master Data profile).');
         }
 
-        $this->logger->info($optIn === false
-            ? '[OptIn] Cart skipped: the customer has no newsletter opt-in.'
-            : '[OptIn] Cart skipped: could not determine the opt-in (no Master Data profile).');
-
-        return false;
+        return $optIn;
     }
 
     private function buildRecoverUrl(array $cartdata): ?string
