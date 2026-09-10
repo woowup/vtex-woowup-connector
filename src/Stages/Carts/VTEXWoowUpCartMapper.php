@@ -3,6 +3,7 @@
 namespace WoowUpConnectors\Stages\Carts;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Support\CommunicationOptIn;
 use WoowUpConnectors\Stages\VTEXConfig;
 use WoowUpV2\Models\AbandonedCartModel;
 
@@ -13,8 +14,6 @@ class VTEXWoowUpCartMapper implements StageInterface
      * en ISO 8601 con offset (ej: "2026-07-02T20:09:17+00:00").
      */
     const LAST_SESSION_DATE_FIELD = 'rclastsessiondate';
-
-    const COMMUNICATION_ENABLED = 'enabled';
 
     private $vtexConnector;
     private $logger;
@@ -36,12 +35,6 @@ class VTEXWoowUpCartMapper implements StageInterface
         $quantities = $this->parseQuantities($cartdata['rclastcart'] ?? '');
         if (empty($quantities)) {
             $this->logger->info('No parseable SKU quantities in rclastcart.');
-            return null;
-        }
-
-        $optIn = $this->optInEnforced() ? $this->resolveOptIn($cartdata) : null;
-
-        if ($this->optInEnforced() && $optIn !== true) {
             return null;
         }
 
@@ -90,7 +83,7 @@ class VTEXWoowUpCartMapper implements StageInterface
 
         return [
             'cart'     => $cart,
-            'customer' => $this->buildCustomer($cartdata, $optIn),
+            'customer' => $this->buildCustomer($cartdata),
         ];
     }
 
@@ -123,7 +116,7 @@ class VTEXWoowUpCartMapper implements StageInterface
         }
     }
 
-    private function buildCustomer(array $cartdata, ?bool $optIn): ?array
+    private function buildCustomer(array $cartdata): ?array
     {
         if (empty($cartdata['email'])) {
             return null;
@@ -140,52 +133,27 @@ class VTEXWoowUpCartMapper implements StageInterface
             $customer['document'] = $cartdata['document'];
         }
 
-        // Con el valor resuelto arriba, no con una suposición sobre que el corte ya corrió. Si la
-        // cuenta ignora el opt-in llega null y no se escribe ningún canal.
-        if ($optIn === true) {
-            $customer['mailing_enabled']  = self::COMMUNICATION_ENABLED;
-            $customer['sms_enabled']      = self::COMMUNICATION_ENABLED;
-            $customer['whatsapp_enabled'] = self::COMMUNICATION_ENABLED;
-        }
-
-        return $customer;
-    }
-
-    /** ¿Esta cuenta delega el opt-in en la tienda? Si no, el carrito se sube como siempre. */
-    private function optInEnforced(): bool
-    {
-        return !$this->ignoreOptIn;
+        return CommunicationOptIn::apply($customer, $this->resolveOptIn($cartdata), $this->ignoreOptIn);
     }
 
     /**
-     * Regla de negocio (Chris, 04-09-2026): *"no podemos mandar un carrito a alguien que no tiene
-     * opt-in"*. El carrito no se sube salvo que la tienda diga que SÍ.
+     * The opt-in does not travel in the worker message: `cartdata` carries the cart fields and the
+     * contact details, nothing else. It has to be fetched from Master Data — one request per cart.
      *
-     * El opt-in **no viene en el mensaje del worker**: el `cartdata` trae los campos del carrito
-     * (`rclastcart`, `rclastcartvalue`, `rclastsessiondate`) y los datos de contacto, nada más. Hay
-     * que ir a buscarlo a Master Data — un request por carrito, así que el valor se resuelve una
-     * sola vez y se reusa.
+     * The cart is always uploaded; this only decides how the customer is created, and only when the
+     * cart is the one creating it. `null` —no profile, or the lookup failed— leaves the opt-in
+     * untouched: a failed request is not the customer saying no.
      *
-     * `null` —no hay perfil, o la consulta falló— cuenta como **no**: no saber que lo dio no es
-     * tenerlo. Se loguea aparte del "no" explícito porque son casos distintos y el segundo es el que
-     * puede tirar carritos que hoy sí se suben.
+     * @param  array $cartdata
+     * @return bool|null
      */
     private function resolveOptIn(array $cartdata): ?bool
     {
         if (empty($cartdata['email'])) {
-            $this->logger->info('[OptIn] Cart skipped: no email to resolve the opt-in with.');
             return null;
         }
 
-        $optIn = $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
-
-        if ($optIn !== true) {
-            $this->logger->info($optIn === false
-                ? '[OptIn] Cart skipped: the customer has no newsletter opt-in.'
-                : '[OptIn] Cart skipped: could not determine the opt-in (no Master Data profile).');
-        }
-
-        return $optIn;
+        return $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
     }
 
     private function buildRecoverUrl(array $cartdata): ?string
