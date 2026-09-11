@@ -684,15 +684,18 @@ class VTEXConnector
     }
 
     /**
-     * Opt-in de newsletter del cliente, buscado por email en Master Data.
+     * Customer's newsletter opt-in, looked up by email in Master Data.
      *
-     * Devuelve true/false cuando el perfil existe y trae el campo, y **null cuando no se pudo
-     * determinar** (no hay perfil, la entidad no expone el campo, o la consulta falló). El null es
-     * información, no un error: quien llama decide qué hacer con "no sé", y no puede confundirlo con
-     * un "no" — son cosas distintas.
+     * Returns true/false when the profile exists and carries the field, and **null when it could
+     * not be determined** (no profile, the field is absent or empty, or the request failed). The
+     * null is information, not an error: the caller decides what "unknown" means, and must not
+     * confuse it with a "no".
      *
-     * Filtra pasando el campo como query param, igual que getCustomerFromId() con userId. Con
-     * `_where` sobre campos privados Master Data responde 403 "Cannot filter by private fields".
+     * Filters by passing the field as a query param, like getCustomerFromId() does with userId:
+     * `_where` over private fields answers 403 "Cannot filter by private fields".
+     *
+     * @param  string $email
+     * @return bool|null
      */
     public function getNewsletterOptInByEmail($email): ?bool
     {
@@ -711,12 +714,9 @@ class VTEXConnector
         }
 
         $documents = json_decode($response->getBody(), true);
+        $optIn     = $documents[0]['isNewsletterOptIn'] ?? null;
 
-        if (empty($documents[0]) || !array_key_exists('isNewsletterOptIn', $documents[0])) {
-            return null;
-        }
-
-        return (bool) $documents[0]['isNewsletterOptIn'];
+        return $optIn === null ? null : (bool) $optIn;
     }
 
     public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn', $startPage = 1)

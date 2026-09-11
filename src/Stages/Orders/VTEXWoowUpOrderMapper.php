@@ -27,7 +27,11 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
     protected $nativeFieldsEnabled;
-    /** La cuenta pidió que no le manejemos el opt-in: la venta no escribe ningún canal. */
+    /**
+     * The account asked us not to manage its opt-in: the sale writes no channel at all.
+     *
+     * @var bool
+     */
     protected $ignoreOptIn;
 
     public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $countOrders = 0)
@@ -43,8 +47,8 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
         $accountConfig = $this->vtexConnector->getAccountConfig() ?? [];
         $this->nativeFieldsEnabled = !empty($accountConfig['native_fields_enabled']);
-        // Sale del mismo array del que el comando saca el $ignoreOptIn que le pasa al mapper de
-        // clientes, así que ventas y clientes no pueden discrepar sobre la misma cuenta.
+        // Same array the command reads to build the customers mapper, so sales and customers cannot
+        // disagree about one account.
         $this->ignoreOptIn = !empty($accountConfig['ignoreOptIn']);
 
         $interruptLog = "Interrupting bad cataloging: " . ($this->interruptBadCataloging ? "Yes" : "No");
@@ -262,26 +266,28 @@ class VTEXWoowUpOrderMapper implements StageInterface
     }
 
     /**
-     * Opt-in de la venta. Va sólo para que el perfil NO nazca con los tres canales prendidos cuando
-     * la venta es la que lo crea; si el cliente ya existe, el uploader descarta estos campos y manda
-     * el módulo de clientes, que lee la fuente autoritativa (Master Data).
+     * Opt-in carried by the sale, so the profile is not born with the three channels on when the
+     * sale is the one creating it.
      *
-     * ⚠️ `optinNewsLetter` es la casilla de ESE checkout, no el estado del cliente: medido contra
-     * Master Data en 1361, 11 de 12 coinciden y 1 difiere. Por eso no se escribe en cada corrida.
+     * `optinNewsLetter` is the checkbox of THAT checkout, not the customer's state: measured against
+     * Master Data on 1361, 11 of 12 agree and 1 differs. The authoritative source is the customers
+     * module, which reads Master Data, so the uploader keeps these fields on create only.
      *
-     * Se aplica en el call site y no adentro de `buildCustomerFromOrder()` a propósito: de las 19
-     * subclases del mapper, PedidosFarma y CaféMartines overridean ese método sin llamar a
-     * `parent::`, así que ahí adentro el opt-in no se escribiría nunca para esas dos cuentas.
+     * Applied at the call site rather than inside `buildCustomerFromOrder()` on purpose: two of the
+     * 20 subclasses override that method without calling `parent::`, and the opt-in would never be
+     * written for them. Every subclass that overrides `buildOrder()` does call `parent::`.
+     *
+     * A missing field means unknown, not "no": `apply()` leaves the customer untouched.
+     *
+     * @param  array  $customer
+     * @param  object $vtexOrder
+     * @return array
      */
     protected function applyOptIn(array $customer, $vtexOrder): array
     {
-        // `ignoreOptIn` gana sin mirar el resto, igual que en el mapper de clientes: la cuenta pidió
-        // que su opt-in lo maneje ella.
-        if ($this->ignoreOptIn || !isset($vtexOrder->clientPreferencesData->optinNewsLetter)) {
-            return $customer;
-        }
-
-        $optIn = (bool) $vtexOrder->clientPreferencesData->optinNewsLetter;
+        $optIn = isset($vtexOrder->clientPreferencesData->optinNewsLetter)
+            ? (bool) $vtexOrder->clientPreferencesData->optinNewsLetter
+            : null;
 
         return CommunicationOptIn::apply($customer, $optIn, $this->ignoreOptIn);
     }

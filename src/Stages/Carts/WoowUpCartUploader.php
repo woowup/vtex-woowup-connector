@@ -9,7 +9,11 @@ use WoowUpV2\Models\UserModel;
 
 class WoowUpCartUploader implements StageInterface
 {
-    /** Campos de comunicación que hay que trasladar del payload al UserModel, con su setter. */
+    /**
+     * Communication fields to carry from the payload into the UserModel, with their setter.
+     *
+     * @var array<string, string>
+     */
     const COMMUNICATION_SETTERS = [
         'mailing_enabled'  => 'setMailingEnabled',
         'sms_enabled'      => 'setSmsEnabled',
@@ -87,10 +91,9 @@ class WoowUpCartUploader implements StageInterface
                 if (!empty($customerData['document'])) {
                     $customer->setDocument($customerData['document']);
                 }
-                // Sin esto el opt-in que resuelve VTEXWoowUpCartMapper no llega nunca a la API: este
-                // método arma un UserModel nuevo y sólo copia los campos que se nombran acá, así que
-                // todo lo demás del payload se descartaba en silencio y el perfil nacía con los tres
-                // canales prendidos por defecto.
+                // This method builds a fresh UserModel and copies only the fields named here, so
+                // without this loop the opt-in resolved by the mapper was dropped in silence and the
+                // profile was born with the three channels on.
                 foreach (self::COMMUNICATION_SETTERS as $field => $setter) {
                     if (!empty($customerData[$field])) {
                         $customer->$setter($customerData[$field]);

@@ -17,13 +17,22 @@ class VTEXWoowUpCartMapper implements StageInterface
 
     private $vtexConnector;
     private $logger;
+
+    /**
+     * The account asked us not to manage its opt-in: no channel is ever written.
+     *
+     * Read from the connector's account config, not from a constructor argument: subclasses are
+     * built by the command with its own signature, so an argument would be lost there.
+     *
+     * @var bool
+     */
     private $ignoreOptIn;
 
-    public function __construct($vtexConnector, $logger, $ignoreOptIn = false)
+    public function __construct($vtexConnector, $logger)
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger        = $logger;
-        $this->ignoreOptIn   = $ignoreOptIn;
+        $this->ignoreOptIn   = !empty(($vtexConnector->getAccountConfig() ?? [])['ignoreOptIn']);
     }
 
     public function __invoke($cartdata)
@@ -147,8 +156,10 @@ class VTEXWoowUpCartMapper implements StageInterface
      * per cart competes with the customers scroll of the same account.
      *
      * The cart is always uploaded; this only decides how the customer is created, and only when the
-     * cart is the one creating it. `null` —field absent and no profile, or the lookup failed—
-     * leaves the opt-in untouched: a failed request is not the customer saying no.
+     * cart is the one creating it. `null` —no profile, or the lookup failed— leaves the opt-in
+     * untouched: a failed request is not the customer saying no.
+     *
+     * Only called with a non-empty email: `buildCustomer()` returns before this otherwise.
      *
      * @param  array $cartdata
      * @return bool|null
@@ -157,10 +168,6 @@ class VTEXWoowUpCartMapper implements StageInterface
     {
         if (array_key_exists('isNewsletterOptIn', $cartdata)) {
             return $this->normalizeOptIn($cartdata['isNewsletterOptIn']);
-        }
-
-        if (empty($cartdata['email'])) {
-            return null;
         }
 
         return $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
