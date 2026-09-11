@@ -75,13 +75,22 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $createtime = date('c', strtotime($vtexOrder->creationDate));
 
+        // The opt-in is applied here and not inside buildCustomerFromOrder(): two of the 20
+        // subclasses override that method without calling `parent::`, so it would never be written
+        // for them. Every subclass overriding buildOrder() does call `parent::`.
+        $customer = CommunicationOptIn::apply(
+            $this->buildCustomerFromOrder($vtexOrder),
+            $this->resolveOptIn($vtexOrder),
+            $this->ignoreOptIn
+        );
+
         $order = [
             'invoice_number'  => $vtexOrder->orderId,
             'channel'         => 'web',
             'createtime'      => $createtime,
             'approvedtime'    => $this->importing ? $createtime : date('c'),
             'branch_name'     => $this->getOrderBranch($vtexOrder),
-            'customer'        => $this->applyOptIn($this->buildCustomerFromOrder($vtexOrder), $vtexOrder),
+            'customer'        => $customer,
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
             'payment'         => $this->getOrderPayments($vtexOrder),
             'prices'          => $this->getOrderPrices($vtexOrder),
@@ -273,23 +282,19 @@ class VTEXWoowUpOrderMapper implements StageInterface
      * Master Data on 1361, 11 of 12 agree and 1 differs. The authoritative source is the customers
      * module, which reads Master Data, so the uploader keeps these fields on create only.
      *
-     * Applied at the call site rather than inside `buildCustomerFromOrder()` on purpose: two of the
-     * 20 subclasses override that method without calling `parent::`, and the opt-in would never be
-     * written for them. Every subclass that overrides `buildOrder()` does call `parent::`.
+     * A missing field means unknown, not "no", and `apply()` then leaves the customer untouched.
+     * Measured on 80 live orders: 77 carry the field, always as a boolean.
      *
-     * A missing field means unknown, not "no": `apply()` leaves the customer untouched.
-     *
-     * @param  array  $customer
      * @param  object $vtexOrder
-     * @return array
+     * @return bool|null
      */
-    protected function applyOptIn(array $customer, $vtexOrder): array
+    protected function resolveOptIn($vtexOrder): ?bool
     {
-        $optIn = isset($vtexOrder->clientPreferencesData->optinNewsLetter)
-            ? (bool) $vtexOrder->clientPreferencesData->optinNewsLetter
-            : null;
+        if (!isset($vtexOrder->clientPreferencesData->optinNewsLetter)) {
+            return null;
+        }
 
-        return CommunicationOptIn::apply($customer, $optIn, $this->ignoreOptIn);
+        return (bool) $vtexOrder->clientPreferencesData->optinNewsLetter;
     }
 
     /**
