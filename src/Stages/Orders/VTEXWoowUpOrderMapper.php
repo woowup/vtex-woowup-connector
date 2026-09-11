@@ -6,6 +6,7 @@ use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\BadCatalogingException;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
 use WoowUpConnectors\Stages\VTEXConfig;
+use WoowUpConnectors\Support\CommunicationOptIn;
 
 class VTEXWoowUpOrderMapper implements StageInterface
 {
@@ -26,6 +27,12 @@ class VTEXWoowUpOrderMapper implements StageInterface
     protected $onlyMapsParentProducts;
     protected $productBlacklist = [];
     protected $nativeFieldsEnabled;
+    /**
+     * The account asked us not to manage its opt-in: the sale writes no channel at all.
+     *
+     * @var bool
+     */
+    protected $ignoreOptIn;
 
     public function __construct($vtexConnector, $importing = false, $logger, $notifier = null, $countOrders = 0)
     {
@@ -40,6 +47,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
 
         $accountConfig = $this->vtexConnector->getAccountConfig() ?? [];
         $this->nativeFieldsEnabled = !empty($accountConfig['native_fields_enabled']);
+        // Same array the command reads to build the customers mapper, so sales and customers cannot
+        // disagree about one account.
+        $this->ignoreOptIn = !empty($accountConfig['ignoreOptIn']);
 
         $interruptLog = "Interrupting bad cataloging: " . ($this->interruptBadCataloging ? "Yes" : "No");
         $productsLog = "Mapping " . ($this->onlyMapsParentProducts ? "Parent" : "Child") . "Products";
@@ -65,13 +75,22 @@ class VTEXWoowUpOrderMapper implements StageInterface
     {
         $createtime = date('c', strtotime($vtexOrder->creationDate));
 
+        // The opt-in is applied here and not inside buildCustomerFromOrder(): two of the 20
+        // subclasses override that method without calling `parent::`, so it would never be written
+        // for them. Every subclass overriding buildOrder() does call `parent::`.
+        $customer = CommunicationOptIn::apply(
+            $this->buildCustomerFromOrder($vtexOrder),
+            $this->resolveOptIn($vtexOrder),
+            $this->ignoreOptIn
+        );
+
         $order = [
             'invoice_number'  => $vtexOrder->orderId,
             'channel'         => 'web',
             'createtime'      => $createtime,
             'approvedtime'    => $this->importing ? $createtime : date('c'),
             'branch_name'     => $this->getOrderBranch($vtexOrder),
-            'customer'        => $this->buildCustomerFromOrder($vtexOrder),
+            'customer'        => $customer,
             'purchase_detail' => $this->buildOrderDetails($vtexOrder->items),
             'payment'         => $this->getOrderPayments($vtexOrder),
             'prices'          => $this->getOrderPrices($vtexOrder),
@@ -253,6 +272,29 @@ class VTEXWoowUpOrderMapper implements StageInterface
         }
 
         return $customer;
+    }
+
+    /**
+     * Opt-in carried by the sale, so the profile is not born with the three channels on when the
+     * sale is the one creating it.
+     *
+     * `optinNewsLetter` is the checkbox of THAT checkout, not the customer's state: measured against
+     * Master Data on 1361, 11 of 12 agree and 1 differs. The authoritative source is the customers
+     * module, which reads Master Data, so the uploader keeps these fields on create only.
+     *
+     * A missing field means unknown, not "no", and `apply()` then leaves the customer untouched.
+     * Measured on 80 live orders: 77 carry the field, always as a boolean.
+     *
+     * @param  object $vtexOrder
+     * @return bool|null
+     */
+    protected function resolveOptIn($vtexOrder): ?bool
+    {
+        if (!isset($vtexOrder->clientPreferencesData->optinNewsLetter)) {
+            return null;
+        }
+
+        return (bool) $vtexOrder->clientPreferencesData->optinNewsLetter;
     }
 
     /**

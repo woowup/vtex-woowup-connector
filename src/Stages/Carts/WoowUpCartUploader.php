@@ -9,6 +9,17 @@ use WoowUpV2\Models\UserModel;
 
 class WoowUpCartUploader implements StageInterface
 {
+    /**
+     * Communication fields to carry from the payload into the UserModel, with their setter.
+     *
+     * @var array<string, string>
+     */
+    const COMMUNICATION_SETTERS = [
+        'mailing_enabled'  => 'setMailingEnabled',
+        'sms_enabled'      => 'setSmsEnabled',
+        'whatsapp_enabled' => 'setWhatsappEnabled',
+    ];
+
     private $woowupV2Client;
     private $logger;
     private $woowupStats;
@@ -79,6 +90,14 @@ class WoowUpCartUploader implements StageInterface
                 }
                 if (!empty($customerData['document'])) {
                     $customer->setDocument($customerData['document']);
+                }
+                // This method builds a fresh UserModel and copies only the fields named here, so
+                // without this loop the opt-in resolved by the mapper was dropped in silence and the
+                // profile was born with the three channels on.
+                foreach (self::COMMUNICATION_SETTERS as $field => $setter) {
+                    if (!empty($customerData[$field])) {
+                        $customer->$setter($customerData[$field]);
+                    }
                 }
                 $this->woowupV2Client->users->create($customer);
                 $this->logger->info("Customer created.");

@@ -3,6 +3,7 @@
 namespace WoowUpConnectors\Stages\Carts;
 
 use League\Pipeline\StageInterface;
+use WoowUpConnectors\Support\CommunicationOptIn;
 use WoowUpConnectors\Stages\VTEXConfig;
 use WoowUpV2\Models\AbandonedCartModel;
 
@@ -17,10 +18,21 @@ class VTEXWoowUpCartMapper implements StageInterface
     private $vtexConnector;
     private $logger;
 
+    /**
+     * The account asked us not to manage its opt-in: no channel is ever written.
+     *
+     * Read from the connector's account config, not from a constructor argument: subclasses are
+     * built by the command with its own signature, so an argument would be lost there.
+     *
+     * @var bool
+     */
+    private $ignoreOptIn;
+
     public function __construct($vtexConnector, $logger)
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger        = $logger;
+        $this->ignoreOptIn   = !empty(($vtexConnector->getAccountConfig() ?? [])['ignoreOptIn']);
     }
 
     public function __invoke($cartdata)
@@ -130,7 +142,60 @@ class VTEXWoowUpCartMapper implements StageInterface
             $customer['document'] = $cartdata['document'];
         }
 
-        return $customer;
+        return CommunicationOptIn::apply($customer, $this->resolveOptIn($cartdata), $this->ignoreOptIn);
+    }
+
+    /**
+     * Prefers the opt-in that already travels in the message, and only falls back to Master Data.
+     *
+     * The message is the `CL` document: every other field this mapper reads —including `carttag`—
+     * is a `CL` field with its exact name, and `isNewsletterOptIn` lives in that same document.
+     * When it is there, no extra request is needed at all.
+     *
+     * The fallback matters because Master Data answers 429 on concurrent operations, so a lookup
+     * per cart competes with the customers scroll of the same account.
+     *
+     * The cart is always uploaded; this only decides how the customer is created, and only when the
+     * cart is the one creating it. `null` —no profile, or the lookup failed— leaves the opt-in
+     * untouched: a failed request is not the customer saying no.
+     *
+     * Only called with a non-empty email: `buildCustomer()` returns before this otherwise.
+     *
+     * @param  array $cartdata
+     * @return bool|null
+     */
+    private function resolveOptIn(array $cartdata): ?bool
+    {
+        if (array_key_exists('isNewsletterOptIn', $cartdata)) {
+            return $this->normalizeOptIn($cartdata['isNewsletterOptIn']);
+        }
+
+        return $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
+    }
+
+    /**
+     * Reads the opt-in the message carries, which is **a string, not a boolean**.
+     *
+     * Master Data sends the `CL` document with its booleans serialised: measured on the queue,
+     * `isNewsletterOptIn` arrives as a string. A plain `(bool)` cast would turn `"false"` into
+     * true and enable the three channels for someone who explicitly said no.
+     *
+     * Anything unrecognised returns null —do not touch— rather than guessing.
+     *
+     * @param  mixed $value
+     * @return bool|null
+     */
+    private function normalizeOptIn($value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }
 
     private function buildRecoverUrl(array $cartdata): ?string
