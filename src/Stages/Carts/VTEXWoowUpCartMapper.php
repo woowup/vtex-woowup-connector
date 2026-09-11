@@ -142,7 +142,15 @@ class VTEXWoowUpCartMapper implements StageInterface
             $customer['document'] = $cartdata['document'];
         }
 
-        return CommunicationOptIn::apply($customer, $this->resolveOptIn($cartdata), $this->ignoreOptIn);
+        $optIn = $this->resolveOptIn($cartdata);
+
+        // Same attribute the customers mapper writes. Nothing has to drop it later here: the cart
+        // uploader only creates, it never updates a customer that already exists.
+        if ($optIn !== null) {
+            $customer['custom_attributes']['opt_in_vtex'] = $optIn ? 'True' : 'False';
+        }
+
+        return CommunicationOptIn::apply($customer, $optIn, $this->ignoreOptIn);
     }
 
     /**

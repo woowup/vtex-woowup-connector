@@ -78,11 +78,18 @@ class VTEXWoowUpOrderMapper implements StageInterface
         // The opt-in is applied here and not inside buildCustomerFromOrder(): two of the 20
         // subclasses override that method without calling `parent::`, so it would never be written
         // for them. Every subclass overriding buildOrder() does call `parent::`.
-        $customer = CommunicationOptIn::apply(
-            $this->buildCustomerFromOrder($vtexOrder),
-            $this->resolveOptIn($vtexOrder),
-            $this->ignoreOptIn
-        );
+        $optIn    = $this->resolveOptIn($vtexOrder);
+        $customer = $this->buildCustomerFromOrder($vtexOrder);
+
+        // Same attribute the customers mapper writes, so a profile created here does not sit with
+        // the channels set and the attribute empty until customers runs. Outside `ignoreOptIn`, like
+        // in customers: it describes what the store said, not what we do about it. The uploader
+        // drops it on update — here the value is the checkbox of THAT checkout, not the state.
+        if ($optIn !== null) {
+            $customer['custom_attributes']['opt_in_vtex'] = $optIn ? 'True' : 'False';
+        }
+
+        $customer = CommunicationOptIn::apply($customer, $optIn, $this->ignoreOptIn);
 
         $order = [
             'invoice_number'  => $vtexOrder->orderId,
