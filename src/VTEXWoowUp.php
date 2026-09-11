@@ -314,7 +314,11 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey));
+            // ignoreOptIn has to travel here too: without it the mapper defaults to managing the
+            // opt-in, and the accounts that asked us not to would get theirs written anyway.
+            $this->setMapStage(
+                new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey, $this->ignoreOptIn)
+            );
         }
 
         if (!$this->uploadStage) {
