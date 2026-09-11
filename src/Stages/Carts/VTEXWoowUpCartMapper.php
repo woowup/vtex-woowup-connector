@@ -137,18 +137,30 @@ class VTEXWoowUpCartMapper implements StageInterface
     }
 
     /**
-     * The opt-in does not travel in the worker message: `cartdata` carries the cart fields and the
-     * contact details, nothing else. It has to be fetched from Master Data — one request per cart.
+     * Prefers the opt-in that already travels in the message, and only falls back to Master Data.
+     *
+     * The message is the `CL` document: every other field this mapper reads —including `carttag`—
+     * is a `CL` field with its exact name, and `isNewsletterOptIn` lives in that same document.
+     * When it is there, no extra request is needed at all.
+     *
+     * The fallback matters because Master Data answers 429 on concurrent operations, so a lookup
+     * per cart competes with the customers scroll of the same account.
      *
      * The cart is always uploaded; this only decides how the customer is created, and only when the
-     * cart is the one creating it. `null` —no profile, or the lookup failed— leaves the opt-in
-     * untouched: a failed request is not the customer saying no.
+     * cart is the one creating it. `null` —field absent and no profile, or the lookup failed—
+     * leaves the opt-in untouched: a failed request is not the customer saying no.
      *
      * @param  array $cartdata
      * @return bool|null
      */
     private function resolveOptIn(array $cartdata): ?bool
     {
+        if (array_key_exists('isNewsletterOptIn', $cartdata)) {
+            $optIn = $cartdata['isNewsletterOptIn'];
+
+            return $optIn === null ? null : (bool) $optIn;
+        }
+
         if (empty($cartdata['email'])) {
             return null;
         }
