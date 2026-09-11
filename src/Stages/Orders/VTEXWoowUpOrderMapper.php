@@ -286,8 +286,10 @@ class VTEXWoowUpOrderMapper implements StageInterface
      * sale is the one creating it.
      *
      * `optinNewsLetter` is the checkbox of THAT checkout, not the customer's state: measured against
-     * Master Data on 1361, 11 of 12 agree and 1 differs. The authoritative source is the customers
-     * module, which reads Master Data, so the uploader keeps these fields on create only.
+     * Master Data over 38 comparable orders on 1361 and 1247, 4 disagree (10.5%) — and all four are
+     * `sale=true` against `MasterData=false`, i.e. they would re-enable someone who opted out. The
+     * authoritative source is the customers module, which reads Master Data, so the uploader keeps
+     * these fields on create only.
      *
      * A missing field means unknown, not "no", and `apply()` then leaves the customer untouched.
      * Measured on 80 live orders: 77 carry the field, always as a boolean.
