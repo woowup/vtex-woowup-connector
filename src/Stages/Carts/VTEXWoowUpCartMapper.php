@@ -156,9 +156,7 @@ class VTEXWoowUpCartMapper implements StageInterface
     private function resolveOptIn(array $cartdata): ?bool
     {
         if (array_key_exists('isNewsletterOptIn', $cartdata)) {
-            $optIn = $cartdata['isNewsletterOptIn'];
-
-            return $optIn === null ? null : (bool) $optIn;
+            return $this->normalizeOptIn($cartdata['isNewsletterOptIn']);
         }
 
         if (empty($cartdata['email'])) {
@@ -166,6 +164,31 @@ class VTEXWoowUpCartMapper implements StageInterface
         }
 
         return $this->vtexConnector->getNewsletterOptInByEmail($cartdata['email']);
+    }
+
+    /**
+     * Reads the opt-in the message carries, which is **a string, not a boolean**.
+     *
+     * Master Data sends the `CL` document with its booleans serialised: measured on the queue,
+     * `isNewsletterOptIn` arrives as a string. A plain `(bool)` cast would turn `"false"` into
+     * true and enable the three channels for someone who explicitly said no.
+     *
+     * Anything unrecognised returns null —do not touch— rather than guessing.
+     *
+     * @param  mixed $value
+     * @return bool|null
+     */
+    private function normalizeOptIn($value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
     }
 
     private function buildRecoverUrl(array $cartdata): ?string
