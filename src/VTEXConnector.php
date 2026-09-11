@@ -701,7 +701,7 @@ class VTEXConnector
         }
 
         try {
-            $response = $this->_getWithRateLimitRetry('/api/dataentities/CL/search', [
+            $response = $this->_get('/api/dataentities/CL/search', [
                 '_fields' => 'email,isNewsletterOptIn',
                 'email'   => $email,
             ]);
@@ -1330,60 +1330,6 @@ class VTEXConnector
      * @param  array  $queryParams [description]
      * @return [type]              [description]
      */
-    /**
-     * How long to wait before retrying a rate-limited VTEX call.
-     *
-     * Honours `Retry-After` when VTEX sends it, otherwise exponential backoff with jitter. The
-     * jitter matters because several accounts run in parallel: without it they all retry at once
-     * and hit the same limit again.
-     *
-     * @param  int                                 $retry    attempt number, 0-based
-     * @param  \Psr\Http\Message\ResponseInterface $response
-     * @return int                                 milliseconds to wait
-     */
-    private function _rateLimitWaitMs($retry, $response)
-    {
-        $retryAfter = (int) ($response->getHeader('Retry-After')[0] ?? 0);
-        $backoffMs  = (int) (pow(2, $retry) * 1000 * (0.5 + (mt_rand() / mt_getrandmax()) * 0.5));
-
-        return max($retryAfter * 1000, $backoffMs);
-    }
-
-    /**
-     * GET that retries only on rate limiting, for one-off queries.
-     *
-     * Master Data answers 429 "Limit of simultaneous operation exceeded" when too many operations
-     * overlap — it is a concurrency limit, not a per-second rate — so the customers scroll and a
-     * per-cart lookup on the same account compete with each other. Without the retry a single
-     * overlap is enough to lose the answer.
-     *
-     * Any other status is returned as-is: this only smooths the rate limit, it does not hide errors.
-     *
-     * @param  string $endpoint
-     * @param  array  $queryParams
-     * @param  int    $maxRetries
-     * @return \Psr\Http\Message\ResponseInterface
-     */
-    private function _getWithRateLimitRetry($endpoint, array $queryParams = [], $maxRetries = 3)
-    {
-        for ($retry = 0; $retry < $maxRetries; $retry++) {
-            $response = $this->_get($endpoint, $queryParams);
-            $status   = $response->getStatusCode();
-
-            if ($status !== 429 && $status !== 408) {
-                return $response;
-            }
-
-            $waitMs = $this->_rateLimitWaitMs($retry, $response);
-            $this->_logger->warning("VTEX {$status} on {$endpoint}, waiting {$waitMs}ms before retry", [
-                'retry' => $retry + 1,
-            ]);
-            usleep($waitMs * 1000);
-        }
-
-        return $response;
-    }
-
     private function _getCustomersWithRetry($endpoint, $params, $requestHeaders, $page, $maxRetries = 5)
     {
         for ($retry = 0; $retry < $maxRetries; $retry++) {
@@ -1392,10 +1338,14 @@ class VTEXConnector
 
             // 429 / 408: exponential backoff + jitter, respecting Retry-After
             if ($status === 429 || $status === 408) {
-                $waitMs = $this->_rateLimitWaitMs($retry, $response);
+                $retryAfter  = (int) ($response->getHeader('Retry-After')[0] ?? 0);
+                $backoffMs   = (int) (pow(2, $retry) * 1000 * (0.5 + (mt_rand() / mt_getrandmax()) * 0.5));
+                $waitMs      = max($retryAfter * 1000, $backoffMs);
                 $this->_logger->warning("VTEX scroll {$status} on page {$page}, waiting {$waitMs}ms before retry", [
-                    'page'  => $page,
-                    'retry' => $retry + 1,
+                    'page'        => $page,
+                    'retry'       => $retry + 1,
+                    'retry_after' => $retryAfter,
+                    'backoff_ms'  => $backoffMs,
                 ]);
                 usleep($waitMs * 1000);
                 continue;
