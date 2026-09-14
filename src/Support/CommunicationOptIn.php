@@ -32,6 +32,34 @@ class CommunicationOptIn
     const CHANNELS = ['mailing', 'sms', 'whatsapp'];
 
     /**
+     * Turns whatever VTEX reports into the `?bool` `apply()` expects.
+     *
+     * **Master Data serialises its booleans**: measured on the carts queue, `isNewsletterOptIn`
+     * arrives as a string. A plain `(bool)` cast turns `"false"` into true and enables the three
+     * channels for someone who explicitly said no — which is why this is a separate step and not an
+     * inline cast at each call site. The same field reaches us through three paths (the customers
+     * scroll, the carts message and the `CL/search` lookup) and they must not read it differently.
+     *
+     * Anything unrecognised returns null —do not touch— rather than guessing. A caller that needs a
+     * different fallback for unknown values says so at its own call site.
+     *
+     * @param  mixed $value
+     * @return bool|null
+     */
+    public static function normalize($value): ?bool
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    }
+
+    /**
      * @param  array     $customer    customer mapping; a modified copy is returned
      * @param  bool|null $optIn       true subscribed, false not subscribed, **null "unknown"** →
      *                                nothing is written. In carts null means the Master Data lookup
