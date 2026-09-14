@@ -89,7 +89,10 @@ class VTEXWoowUpCustomerMapper implements StageInterface
                 }
             }
 
-            if (isset($vtexCustomer->isNewsletterOptIn)) {
+            // Gated by the same flag as the channels above: the attribute is consent data, not
+            // commentary (OptInFreshnessService::CONSENT_ATTRIBUTES drops it with them). An
+            // account that manages its opt-in elsewhere gets none of it written.
+            if (isset($vtexCustomer->isNewsletterOptIn) && $this->getNewsletterOptIn) {
                 if (!$vtexCustomer->isNewsletterOptIn) {
                     $customer['custom_attributes'] = [
                         'opt_in_vtex' => 'False',

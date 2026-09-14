@@ -146,7 +146,11 @@ class VTEXWoowUpCartMapper implements StageInterface
 
         // Same attribute the customers mapper writes. Nothing has to drop it later here: the cart
         // uploader only creates, it never updates a customer that already exists.
-        if ($optIn !== null) {
+        // Gated by `ignoreOptIn` like the channels are: the attribute is not commentary, it is
+        // consent data — OptInFreshnessService::CONSENT_ATTRIBUTES drops it together with the
+        // channels when preserving. If the account manages its opt-in elsewhere, the connector
+        // writes none of it: no channels, no attribute.
+        if ($optIn !== null && !$this->ignoreOptIn) {
             $customer['custom_attributes']['opt_in_vtex'] = $optIn ? 'True' : 'False';
         }
 
