@@ -5,6 +5,7 @@ namespace WoowUpConnectors\Stages\Customers;
 use GuzzleHttp\Exception\RequestException;
 use League\Pipeline\StageInterface;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
+use WoowUpConnectors\Support\CommunicationOptIn;
 
 class VTEXWoowUpCustomerMapper implements StageInterface
 {
@@ -71,11 +72,13 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             }
 
 
+            $optIn = $this->resolveOptIn($vtexCustomer);
+
             // El opt-in se escribe siempre y la protección la aplica el uploader, que reusa la
             // entidad del find del alta/actualización. Antes esto costaba un GET /multiusers/find
             // extra por cliente, con un cliente HTTP propio que no pasaba por las métricas.
-            if (isset($vtexCustomer->isNewsletterOptIn) && ($this->getNewsletterOptIn)) {
-                if (!$vtexCustomer->isNewsletterOptIn) {
+            if ($optIn !== null && ($this->getNewsletterOptIn)) {
+                if (!$optIn) {
                     $customer['mailing_enabled'] = self::COMMUNICATION_DISABLED;
                     $customer['sms_enabled'] = self::COMMUNICATION_DISABLED;
                     $customer['mailing_enabled_reason'] = self::DISABLED_REASON_OTHER;
@@ -92,16 +95,10 @@ class VTEXWoowUpCustomerMapper implements StageInterface
             // Gated by the same flag as the channels above: the attribute is consent data, not
             // commentary (OptInFreshnessService::CONSENT_ATTRIBUTES drops it with them). An
             // account that manages its opt-in elsewhere gets none of it written.
-            if (isset($vtexCustomer->isNewsletterOptIn) && $this->getNewsletterOptIn) {
-                if (!$vtexCustomer->isNewsletterOptIn) {
-                    $customer['custom_attributes'] = [
-                        'opt_in_vtex' => 'False',
-                    ];
-                } else {
-                    $customer['custom_attributes'] = [
-                        'opt_in_vtex' => 'True',
-                    ];
-                }
+            if ($optIn !== null && $this->getNewsletterOptIn) {
+                $customer['custom_attributes'] = [
+                    'opt_in_vtex' => $optIn ? 'True' : 'False',
+                ];
             }
 
             if (isset($vtexCustomer->updatedIn)) {
@@ -136,6 +133,38 @@ class VTEXWoowUpCustomerMapper implements StageInterface
         return null;
     }
 
+
+    /**
+     * The opt-in the store reports for this customer, or null when it reports nothing.
+     *
+     * Same shape as `VTEXWoowUpOrderMapper::resolveOptIn()` and `VTEXWoowUpCartMapper::resolveOptIn()`:
+     * the reading of the field is the only thing that changes between entities, so it lives in one
+     * named method per mapper instead of inline.
+     *
+     * ⚠️ The field used to be read with PHP truthiness, which turned the string `"false"` into true
+     * and enabled the three channels for someone who explicitly said no. Master Data serialises its
+     * booleans —measured on the carts queue, where the same field arrives as a string— and this is
+     * the same `CL` entity, so the customers scroll can carry it too.
+     *
+     * The fallback to a plain cast is deliberate: `normalize()` returns null for anything it does
+     * not recognise, and here that would mean "do not write", which is NOT what this mapper used to
+     * do for an empty string or an arbitrary value. Keeping the cast confines the change to the one
+     * case that was a bug. Only an absent field means unknown, exactly as the old `isset()` did.
+     *
+     * @param  object $vtexCustomer
+     * @return bool|null
+     */
+    protected function resolveOptIn($vtexCustomer): ?bool
+    {
+        if (!isset($vtexCustomer->isNewsletterOptIn)) {
+            return null;
+        }
+
+        $raw        = $vtexCustomer->isNewsletterOptIn;
+        $normalized = CommunicationOptIn::normalize($raw);
+
+        return $normalized === null ? (bool) $raw : $normalized;
+    }
 
     protected function buildAddress($vtexAddress)
     {

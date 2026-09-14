@@ -7,6 +7,7 @@ use WoowUpConnectors\Exceptions\VTEXException;
 use WoowUpConnectors\Exceptions\VTEXRequestException;
 use Psr;
 use WoowUpConnectors\Stages\VTEXConfig;
+use WoowUpConnectors\Support\CommunicationOptIn;
 
 class VTEXConnector
 {
@@ -714,9 +715,11 @@ class VTEXConnector
         }
 
         $documents = json_decode($response->getBody(), true);
-        $optIn     = $documents[0]['isNewsletterOptIn'] ?? null;
 
-        return $optIn === null ? null : (bool) $optIn;
+        // Mismo normalizador que el resto: este método lee la entidad `CL`, la misma que llega
+        // serializada en el mensaje del carrito, así que el cast crudo tenía acá el bug contra el
+        // que advierte el docblock de `VTEXWoowUpCartMapper::resolveOptIn()`.
+        return CommunicationOptIn::normalize($documents[0]['isNewsletterOptIn'] ?? null);
     }
 
     public function getCustomers($fromDate = null, $toDate = null, $dataEntity = "CL", $dateField = 'updatedIn', $startPage = 1)
