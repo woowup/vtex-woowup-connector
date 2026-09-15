@@ -116,7 +116,7 @@ class VTEXConnector
             $this->_logger = $logger;
             $this->checkVtexConfig($vtexConfig);
 
-            $this->_host           = 'http://' . $vtexConfig['appName'] . '.vtexcommercestable.com.br';
+            $this->_host           = 'https://' . $vtexConfig['appName'] . '.vtexcommercestable.com.br';
             $this->_appKey         = $vtexConfig['appKey'];
             $this->_appId          = $vtexConfig['appId'];
             $this->_appToken       = $vtexConfig['appToken'];
@@ -982,7 +982,7 @@ class VTEXConnector
     {
         if ($numberOfTries > self::UNMASK_RETRIES_LIMIT) {
             $this->_logger->error("Error while unmasking email, max number of tries exceeded");
-            $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
+            $this->_host = 'https://' . $this->_appName . '.vtexcommercestable.com.br';
             return $alias;
         }
         try {
@@ -995,7 +995,7 @@ class VTEXConnector
 
             $response = $this->_get('/api/pvt/emailMapping', $params);
 
-            $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
+            $this->_host = 'https://' . $this->_appName . '.vtexcommercestable.com.br';
 
             $response = json_decode($response->getBody(), true);
 
@@ -1015,7 +1015,7 @@ class VTEXConnector
             if ($numberOfTries < self::UNMASK_RETRIES_LIMIT) {
                 return $this->_unmaskEmail($alias, $numberOfTries + 1);
             }
-            $this->_host = 'http://' . $this->_appName . '.vtexcommercestable.com.br';
+            $this->_host = 'https://' . $this->_appName . '.vtexcommercestable.com.br';
             $this->_logger->error("Error at request attempt " . $e->getMessage());
             return $alias;
         }
@@ -1233,7 +1233,7 @@ class VTEXConnector
         $categoryInfo = [
             'id'       => (string) $vtexCategory->id,
             'name'     => $vtexCategory->name,
-            'url'      => str_replace('http://'.$this->getAppName().'.vtexcommercestable.com.br/', $this->getStoreUrl(), $vtexCategory->url),
+            'url'      => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br\//si', $this->getStoreUrl(), $vtexCategory->url),
             'children' => [],
         ];
 
