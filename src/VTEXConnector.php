@@ -1248,6 +1248,11 @@ class VTEXConnector
 
     /**
      * Basic VTEX API request
+     *
+     * A transfer that breaks after the headers (e.g. cURL error 23) lands in the catch with a 2xx/3xx
+     * response and a partial body, so the transport error is logged instead of the body. Raw error
+     * bodies are cut to 500 chars to keep each log line small.
+     *
      * @param  [type] $method      [description]
      * @param  [type] $endpoint    [description]
      * @param  array  $queryParams [description]
@@ -1285,16 +1290,19 @@ class VTEXConnector
                     $code = $response->getStatusCode();
                     $body = (string)$e->getResponse()->getBody();
                     $decoded = json_decode($body);
-                    $message = $decoded->Message ?? $decoded->error->message ?? $body ?? $code;
+                    $apiMessage = $decoded->Message ?? $decoded->error->message ?? null;
+                    $message = $code < 400
+                        ? $e->getMessage()
+                        : ($apiMessage ?? (trim($body) !== '' ? mb_strimwidth(trim($body), 0, 500, '...') : $code));
 
-                    $this->_logger->error("Error [" . $code . "] " . $message);
+                    $this->_logger->error("Error [" . $code . "] " . $message . " " . $endpoint);
                     if ($response->getStatusCode() == 429) {
                         $this->_logger->info("Too many request");
                         $retryAfter = (int)($response->getHeader('Retry-After')[0] ?? 0);
                         sleep($retryAfter > 0 ? $retryAfter : self::TOO_MANY_REQUESTS_SLEEP_SEC);
                     } elseif ($response->getStatusCode() >= 400 && $response->getStatusCode() < 500) {
                         // VTEX returns 400 for transient SQL Server timeouts on catalog search
-                        if (strpos($message, "Can't create search criteria!") !== false) {
+                        if (strpos($apiMessage ?? $body, "Can't create search criteria!") !== false) {
                             $this->_logger->error("VTEX transient timeout on 400, retrying. endpoint: " . $endpoint);
                         } else {
                             throw new VTEXRequestException($message, $code, $endpoint, $queryParams);
