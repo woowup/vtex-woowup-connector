@@ -18,13 +18,22 @@ class VTEXWoowUpCustomerMapper implements StageInterface
     protected $getNewsletterOptIn;
     private $apiKey;
 
-    public function __construct($vtexConnector, $logger,$apiKey, $ignoreOptIn = false)
+    public function __construct($vtexConnector, $logger, $apiKey)
     {
         $this->vtexConnector = $vtexConnector;
         $this->logger = $logger;
-        $this->getNewsletterOptIn = !$ignoreOptIn;
         $this->apiKey = $apiKey;
-        return $this;
+
+        // Same array VTEXWoowUpOrderMapper and VTEXWoowUpCartMapper read, so the three entities
+        // cannot disagree about one account.
+        //
+        // ⚠️ This used to be a 4th positional argument, and that is exactly why it kept getting
+        // lost: every subclass that declares its own constructor drops it **silently** —PHP does
+        // not complain about the missing argument because it has a default— and the account ends up
+        // with its opt-in written after asking us not to. It happened to CafeMartines (a 3-parameter
+        // constructor) and ShopGallery had to hardcode the flag to work around it. Reading the
+        // config here means no caller has anything to remember.
+        $this->getNewsletterOptIn = empty($vtexConnector->getAccountConfig()['ignoreOptIn']);
     }
 
     public function __invoke($payload)

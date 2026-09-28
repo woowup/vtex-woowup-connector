@@ -250,7 +250,7 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger,$this->apiKey, $this->ignoreOptIn));
+            $this->setMapStage(new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey));
         }
 
         if (!$this->uploadStage) {
@@ -314,10 +314,11 @@ class VTEXWoowUp
         }
 
         if (!$this->mapStage) {
-            // ignoreOptIn has to travel here too: without it the mapper defaults to managing the
-            // opt-in, and the accounts that asked us not to would get theirs written anyway.
+            // `ignoreOptIn` no se pasa: el mapper lo lee de `getAccountConfig()`, igual que los de
+            // ventas y carritos. Antes viajaba como 4to argumento y cualquier subclase con
+            // constructor propio lo perdía en silencio.
             $this->setMapStage(
-                new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey, $this->ignoreOptIn)
+                new VTEXWoowUpCustomerMapper($this->vtexConnector, $this->logger, $this->apiKey)
             );
         }
 
