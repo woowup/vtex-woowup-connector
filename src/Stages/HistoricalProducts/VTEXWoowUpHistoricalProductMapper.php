@@ -46,7 +46,7 @@ class VTEXWoowUpHistoricalProductMapper implements StageInterface
         $product = [
             'brand'             => $vtexProduct->BrandName,
             'description'       => $vtexProduct->ProductDescription,
-            'url'               => $this->vtexConnector->getStoreUrl() . $vtexProduct->DetailUrl,
+            'url'               => $this->vtexConnector->getProductStoreUrl($vtexProduct->DetailUrl),
             'release_date'      => $vtexProduct->ReleaseDate,
             'available'         => $this->getAvailable($vtexProduct)
         ];
