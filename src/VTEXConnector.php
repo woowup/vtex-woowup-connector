@@ -73,6 +73,14 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
+    /**
+     * Paging order for accounts with `orders_by_order_id` in their config. With creationDate, orders that share it
+     * (marketplace orders split into -01/-02) can come back in a different order on each page request, so at a
+     * page boundary one is repeated and the other never shows up; orderId is unique, so pages are stable. Each
+     * window is still processed by creationDate: its orders are collected and sorted before being yielded.
+     */
+    const ORDERS_ORDER_BY_ORDER_ID = 'orderId,asc';
+
     const MAX_REQUEST_ATTEMPTS = 25;
 
     const COLLECTIONS_PAGE_SIZE = 50;
@@ -393,11 +401,13 @@ class VTEXConnector
 
         $this->_logger->info("Searching for orders between dates: $fromDate - $toDate");
 
+        $byOrderId = !empty($this->accountConfig['orders_by_order_id']);
+
         $params = array(
             'f_status' => join(',', $this->_status),
             'page'     => self::ORDERS_QUERY_PARAMS['page'],
             'per_page' => self::ORDERS_QUERY_PARAMS['per_page'],
-            'orderBy'  => self::ORDERS_QUERY_PARAMS['orderBy'],
+            'orderBy'  => $byOrderId ? self::ORDERS_ORDER_BY_ORDER_ID : self::ORDERS_QUERY_PARAMS['orderBy'],
         );
 
         $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
@@ -421,6 +431,7 @@ class VTEXConnector
 
             $params['f_creationDate'] = $dateFilter;
             $params['page']           = self::ORDERS_QUERY_PARAMS['page'];
+            $windowOrders             = [];
 
             do {
                 $params['page']++;
@@ -446,10 +457,19 @@ class VTEXConnector
                 }
 
                 foreach ($response->list as $vtexOrder) {
+                    if ($byOrderId) {
+                        $windowOrders[] = [(string) ($vtexOrder->creationDate ?? ''), $vtexOrder->orderId];
+                        continue;
+                    }
                     yield $vtexOrder->orderId;
                 }
 
             } while (($params['page'] * $params['per_page']) < $totalOrders);
+
+            sort($windowOrders);
+            foreach ($windowOrders as $windowOrder) {
+                yield $windowOrder[1];
+            }
 
             $fromDate = date('c', $timeStamp + $intervalSec);
             $intervalSec = 3600 * $salesWindow;
