@@ -73,6 +73,13 @@ class VTEXConnector
         'per_page' => 100,
     ];
 
+    /**
+     * Order for accounts with `orders_by_order_id` in their config. With creationDate, orders that share it
+     * (marketplace orders split into -01/-02) can come back in a different order on each page request, so at a
+     * page boundary one is repeated and the other never shows up; orderId is unique, so pages are stable.
+     */
+    const ORDERS_ORDER_BY_ORDER_ID = 'orderId,asc';
+
     const MAX_REQUEST_ATTEMPTS = 25;
 
     const COLLECTIONS_PAGE_SIZE = 50;
@@ -379,7 +386,9 @@ class VTEXConnector
             'f_status' => join(',', $this->_status),
             'page'     => self::ORDERS_QUERY_PARAMS['page'],
             'per_page' => self::ORDERS_QUERY_PARAMS['per_page'],
-            'orderBy'  => self::ORDERS_QUERY_PARAMS['orderBy'],
+            'orderBy'  => empty($this->accountConfig['orders_by_order_id'])
+                ? self::ORDERS_QUERY_PARAMS['orderBy']
+                : self::ORDERS_ORDER_BY_ORDER_ID,
         );
 
         $salesWindow = $hours ?? self::DEFAULT_SALES_WINDOW;
