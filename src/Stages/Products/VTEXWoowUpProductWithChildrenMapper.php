@@ -16,7 +16,7 @@ class VTEXWoowUpProductWithChildrenMapper extends VTEXWoowUpProductMapper
         $baseProduct = [
             'brand'             => $vtexBaseProduct->brand,
             'description'       => $this->stripHTML($vtexBaseProduct->description),
-            'url'               => preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', $this->vtexConnector->getStoreUrl(), $vtexBaseProduct->link),
+            'url'               => $this->vtexConnector->getProductStoreUrl($vtexBaseProduct->link),
             'base_name'         => $vtexBaseProduct->productName,
             'release_date'      => $vtexBaseProduct->releaseDate
         ];

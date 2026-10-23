@@ -333,6 +333,24 @@ class VTEXConnector
         return $this->_storeUrl;
     }
 
+    /**
+     * Builds the store URL of a product from a catalog path ("/slug/p") or from a VTEX link on the
+     * vtexcommercestable host, with a single slash between the store and the path whether or not the
+     * backend store URL ends in "/". A link on any other host is returned as it comes.
+     *
+     * @param string $pathOrLink
+     * @return string
+     */
+    public function getProductStoreUrl($pathOrLink)
+    {
+        $path = preg_replace('/https?:\/\/.*\.vtexcommercestable\.com\.br/si', '', $pathOrLink, -1, $replaced);
+        if ($replaced === 0 && preg_match('/^https?:\/\//i', $pathOrLink)) {
+            return $pathOrLink;
+        }
+
+        return rtrim($this->_storeUrl, '/') . '/' . ltrim($path, '/');
+    }
+
     public function getSyncCategories()
     {
         return $this->_syncCategories;
