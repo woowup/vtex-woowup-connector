@@ -43,13 +43,20 @@ class WoowUpCCInfoStage implements StageInterface
         return $order;
     }
 
+    /**
+     * Completes each card payment with WoowUp's IIN data. Payments without first digits or whose lookup fails are kept
+     * as they came: the result replaces the order's payments, so dropping them lost every payment but the resolved ones.
+     */
     protected function addBankInfo($payments)
     {
         if (!$payments) return;
 
         $info = [];
         foreach ($payments as $payment) {
-            if (!isset($payment['first_digits'])) continue;
+            if (!isset($payment['first_digits'])) {
+                $info[] = $payment;
+                continue;
+            }
 
             try {
                 $result = $this->woowupClient->banks->getDataFromFirstSixDigits($payment['first_digits']);
@@ -60,10 +67,12 @@ class WoowUpCCInfoStage implements StageInterface
                 } else {
                     $this->logger->info(" Error: Code '" . $e->getCode() . "', Message '" . $e->getMessage() . "'");
                 }
+                $info[] = $payment;
                 continue;
             }
 
             if (!isset($result)) {
+                $info[] = $payment;
                 continue;
             }
 
