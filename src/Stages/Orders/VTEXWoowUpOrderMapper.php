@@ -119,6 +119,14 @@ class VTEXWoowUpOrderMapper implements StageInterface
             $order['email'] = $order['customer']['email'];
         }
 
+        // POST /purchases resolves the buyer with the multi-id lookup over the top-level email, document
+        // and telephone. Without the telephone, a sale with no document whose email is not in WoowUp fails
+        // with user_not_found even when the account identifies by telephone and a customer already has it
+        // (the customer upload cannot create the buyer either: the API answers user_duplicated).
+        if (isset($order['customer']['telephone']) && ($order['customer']['telephone'] !== "")) {
+            $order['telephone'] = $order['customer']['telephone'];
+        }
+
         if (@$vtexOrder->packageAttachment->packages[0]->trackingNumber) {
             $order['custom_attributes']['tracking_id'] = $vtexOrder->packageAttachment->packages[0]->trackingNumber;
         }
