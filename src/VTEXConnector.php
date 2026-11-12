@@ -107,6 +107,9 @@ class VTEXConnector
     private $_salesChannelId;
     private $_salesChannelList;
     private $_skipProductsSalesChannel = false;
+    // Problems found resolving or using the products `sc`, keyed so each one is reported once per run.
+    // The run still finishes with a cropped catalog; the caller decides whether to fail over them.
+    private $_productsSalesChannelIssues = [];
 
     private $_categories;
     private $_collections = null;
@@ -246,8 +249,49 @@ class VTEXConnector
             return $backendSalesChannelId;
         }
 
+        if ($this->_salesChannelId !== null && $this->_salesChannelId !== '') {
+            // The backend has a channel but it doesn't resolve (a name not in /saleschannel/list, a
+            // list like "Principal, Shipping Methods", or the list request failed): the default
+            // channel may hold only part of the catalog.
+            $reason = empty($this->getSalesChannelList())
+                ? "the sales channel list could not be retrieved"
+                : "it is not a channel id nor the name of a channel in /saleschannel/list";
+            $this->addProductsSalesChannelIssue(
+                'unresolved:' . $this->_salesChannelId,
+                "Backend sales channel '{$this->_salesChannelId}' could not be resolved ($reason); products were searched with the default sales channel " . self::DEFAULT_PRODUCTS_SALES_CHANNEL
+            );
+            return self::DEFAULT_PRODUCTS_SALES_CHANNEL;
+        }
+
         $this->_logger->info("No sales channel configured, using default: " . self::DEFAULT_PRODUCTS_SALES_CHANNEL . " for $context");
         return self::DEFAULT_PRODUCTS_SALES_CHANNEL;
+    }
+
+    /**
+     * Records a problem with the products sales channel (once per key) and logs it as a warning.
+     *
+     * @param string $key     dedup key, so a search resolved many times in a run reports it once
+     * @param string $message human readable description
+     */
+    private function addProductsSalesChannelIssue($key, $message)
+    {
+        if (isset($this->_productsSalesChannelIssues[$key])) {
+            return;
+        }
+        $this->_productsSalesChannelIssues[$key] = $message;
+        $this->_logger->warning($message);
+    }
+
+    /**
+     * Problems found this run with the products sales channel: VTEX rejected the `sc` (the search
+     * went on without it) or the backend channel could not be resolved (the default one was used).
+     * In both cases the run ends normally but the catalog may be cropped.
+     *
+     * @return string[] one message per problem; empty when the channel was used as configured
+     */
+    public function getProductsSalesChannelIssues()
+    {
+        return array_values($this->_productsSalesChannelIssues);
     }
 
     /**
@@ -274,7 +318,10 @@ class VTEXConnector
             return $this->_get('/api/catalog_system/pub/products/search', $params);
         } catch (\Exception $e) {
             if (isset($params['sc']) && $this->isUnavailableSalesChannelError($e)) {
-                $this->_logger->warning("VTEX rejected sales channel {$params['sc']} ({$e->getMessage()}); retrying products search without sc for the rest of the run");
+                $this->addProductsSalesChannelIssue(
+                    'rejected:' . $params['sc'],
+                    "VTEX rejected sales channel {$params['sc']} ({$e->getMessage()}); products were searched without sc for the rest of the run"
+                );
                 $this->_skipProductsSalesChannel = true;
                 unset($params['sc']);
                 return $this->_get('/api/catalog_system/pub/products/search', $params);
