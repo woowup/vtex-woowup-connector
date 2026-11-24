@@ -247,9 +247,14 @@ class VTEXWoowUpOrderMapper implements StageInterface
     }
 
     /**
-     * Builds a customer in WoowUp's format from VTEX's order
-     * @param  [type] $vtexOrder [description]
-     * @return [type]            [description]
+     * Builds a customer in WoowUp's format from VTEX's order.
+     *
+     * Corporate buyers who only fill in the company's tax id reach VTEX with an empty `document` and the tax id in
+     * `corporateDocument`; for them (`isCorporate: true`) the tax id is the document. A filled `document` always wins,
+     * and `document_type` stays as VTEX sends it.
+     *
+     * @param  object $vtexOrder
+     * @return array
      */
     protected function buildCustomerFromOrder($vtexOrder)
     {
@@ -259,6 +264,9 @@ class VTEXWoowUpOrderMapper implements StageInterface
         ];
         if (isset($vtexOrder->clientProfileData->document) && !empty($vtexOrder->clientProfileData->document)) {
             $customer['document'] = $vtexOrder->clientProfileData->document;
+        } elseif (($vtexOrder->clientProfileData->isCorporate ?? false) === true
+            && trim((string) ($vtexOrder->clientProfileData->corporateDocument ?? '')) !== '') {
+            $customer['document'] = trim((string) $vtexOrder->clientProfileData->corporateDocument);
         }
         if (isset($vtexOrder->clientProfileData->documentType) && !empty($vtexOrder->clientProfileData->documentType)) {
             $customer['document_type'] = $vtexOrder->clientProfileData->documentType;
